@@ -8,6 +8,8 @@
   },
   "license": "MIT",
   "repository": "https://github.com/maestro-plugin/maestro",
+  "homepage": "https://github.com/maestro-plugin/maestro#readme",
+  "bugs": "https://github.com/maestro-plugin/maestro/issues",
   "keywords": [
     "claude-code",
     "plugin",
@@ -18,6 +20,35 @@
     "maestro",
     "context-driven",
     "tdd",
-    "workflow"
-  ]
+    "workflow",
+    "multi-project",
+    "workspace",
+    "git-submodules",
+    "cross-project"
+  ],
+  "engines": {
+    "claude-code": ">=1.0.0"
+  },
+  "commands": [
+    "maestro",
+    "maestro:setup",
+    "maestro:newTrack",
+    "maestro:status",
+    "maestro:implement",
+    "maestro:revert",
+    "maestro:workspace",
+    "maestro:projects",
+    "workflow",
+    "parallel-execute",
+    "list-subagents",
+    "agent-info"
+  ],
+  "features": {
+    "contextDrivenDevelopment": true,
+    "multiProjectWorkspaces": true,
+    "gitSubmoduleSupport": true,
+    "crossProjectTracks": true,
+    "workflowTemplates": ["tdd", "agile", "minimal"],
+    "subagentCount": 100
+  }
 }

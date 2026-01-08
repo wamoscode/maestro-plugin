@@ -2,8 +2,8 @@
   "$schema": "https://claude.ai/schemas/plugin-manifest-v1.json",
   "id": "maestro",
   "name": "Maestro",
-  "version": "1.0.0",
-  "description": "Master orchestrator plugin with 100+ specialized sub-agents",
+  "version": "1.3.0",
+  "description": "Master orchestrator plugin with Context-Driven Development, multi-project workspaces, git submodule support, and 100+ specialized sub-agents",
   "main": "../plugin.json",
   "type": "plugin",
   "enabled": true,
@@ -12,7 +12,8 @@
     "subagents": "../subagents",
     "hooks": "../hooks",
     "skills": "../skills",
-    "mcp": "../mcp"
+    "mcp": "../mcp",
+    "templates": "../templates"
   },
   "configuration": {
     "schema": "config-schema.json",
