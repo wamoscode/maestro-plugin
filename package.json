@@ -1,0 +1,41 @@
+{
+  "name": "maestro-plugin",
+  "version": "1.0.0",
+  "description": "Master orchestrator plugin for Claude Code with 100+ specialized sub-agents",
+  "main": "mcp/server.js",
+  "scripts": {
+    "start": "node mcp/server.js",
+    "install-plugin": "./scripts/install.sh",
+    "sync-agents": "./scripts/sync-agents.sh",
+    "validate": "./scripts/validate.sh",
+    "test": "echo \"No tests configured yet\""
+  },
+  "keywords": [
+    "claude-code",
+    "plugin",
+    "orchestrator",
+    "multi-agent",
+    "mcp",
+    "maestro"
+  ],
+  "author": "Maestro Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/maestro-plugin/maestro"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "plugin.json",
+    "commands/",
+    "subagents/",
+    "hooks/",
+    "skills/",
+    "scripts/",
+    "mcp/",
+    "README.md",
+    "LICENSE"
+  ]
+}

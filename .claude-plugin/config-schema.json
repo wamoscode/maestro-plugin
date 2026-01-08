@@ -1,0 +1,92 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Maestro Plugin Configuration",
+  "description": "Configuration schema for the Maestro orchestrator plugin",
+  "type": "object",
+  "properties": {
+    "maxParallelAgents": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10,
+      "default": 5,
+      "description": "Maximum number of agents that can run in parallel"
+    },
+    "defaultTimeout": {
+      "type": "integer",
+      "minimum": 10000,
+      "maximum": 600000,
+      "default": 300000,
+      "description": "Default timeout for agent execution in milliseconds"
+    },
+    "enableLogging": {
+      "type": "boolean",
+      "default": true,
+      "description": "Enable execution logging"
+    },
+    "logLevel": {
+      "type": "string",
+      "enum": ["debug", "info", "warn", "error"],
+      "default": "info",
+      "description": "Log verbosity level"
+    },
+    "isolatedContexts": {
+      "type": "boolean",
+      "default": true,
+      "description": "Run parallel agents in isolated contexts"
+    },
+    "autoRetry": {
+      "type": "boolean",
+      "default": true,
+      "description": "Automatically retry failed agent executions"
+    },
+    "maxRetries": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10,
+      "default": 3,
+      "description": "Maximum number of retry attempts"
+    },
+    "circuitBreaker": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable circuit breaker pattern"
+        },
+        "threshold": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "default": 5,
+          "description": "Number of failures before opening circuit"
+        },
+        "resetTimeout": {
+          "type": "integer",
+          "minimum": 10000,
+          "maximum": 300000,
+          "default": 60000,
+          "description": "Time in ms before attempting to reset circuit"
+        }
+      },
+      "additionalProperties": false
+    },
+    "preferredAgents": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "List of agent IDs to prefer for task routing"
+    },
+    "excludedAgents": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "List of agent IDs to exclude from routing"
+    }
+  },
+  "additionalProperties": false
+}

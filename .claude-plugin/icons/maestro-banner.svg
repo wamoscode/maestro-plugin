@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 300" fill="none">
+  <defs>
+    <linearGradient id="bannerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#4f46e5;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#6366f1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="1200" height="300" fill="url(#bannerGrad)"/>
+
+  <!-- Decorative circles (agents) -->
+  <circle cx="100" cy="80" r="20" fill="white" opacity="0.2"/>
+  <circle cx="180" cy="140" r="15" fill="white" opacity="0.15"/>
+  <circle cx="120" cy="200" r="18" fill="white" opacity="0.2"/>
+  <circle cx="1080" cy="100" r="22" fill="white" opacity="0.2"/>
+  <circle cx="1020" cy="180" r="16" fill="white" opacity="0.15"/>
+  <circle cx="1100" cy="220" r="14" fill="white" opacity="0.2"/>
+
+  <!-- Connecting lines -->
+  <path d="M100 80 Q150 150 180 140" stroke="white" stroke-width="2" fill="none" opacity="0.3"/>
+  <path d="M180 140 Q140 180 120 200" stroke="white" stroke-width="2" fill="none" opacity="0.3"/>
+  <path d="M1080 100 Q1050 140 1020 180" stroke="white" stroke-width="2" fill="none" opacity="0.3"/>
+  <path d="M1020 180 Q1060 200 1100 220" stroke="white" stroke-width="2" fill="none" opacity="0.3"/>
+
+  <!-- Icon -->
+  <circle cx="300" cy="150" r="60" fill="white" opacity="0.95"/>
+  <path d="M270 180 L330 120" stroke="#6366f1" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="265" cy="130" r="8" fill="#6366f1"/>
+  <circle cx="285" cy="118" r="6" fill="#8b5cf6"/>
+  <circle cx="335" cy="140" r="8" fill="#6366f1"/>
+  <circle cx="320" cy="170" r="6" fill="#8b5cf6"/>
+
+  <!-- Text -->
+  <text x="400" y="130" font-family="system-ui, -apple-system, sans-serif" font-size="72" font-weight="700" fill="white">Maestro</text>
+  <text x="400" y="190" font-family="system-ui, -apple-system, sans-serif" font-size="24" font-weight="400" fill="white" opacity="0.9">Orchestrate 100+ AI agents like a symphony conductor</text>
+  <text x="400" y="230" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="400" fill="white" opacity="0.7">Intelligent task routing • Parallel execution • Workflow automation</text>
+</svg>

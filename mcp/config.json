@@ -1,0 +1,161 @@
+{
+  "name": "maestro-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Maestro plugin - provides advanced orchestration capabilities",
+  "server": {
+    "type": "stdio",
+    "command": "node",
+    "args": ["server.js"]
+  },
+  "capabilities": {
+    "tools": true,
+    "resources": true,
+    "prompts": true
+  },
+  "tools": [
+    {
+      "name": "list_agents",
+      "description": "List all available sub-agents with their descriptions and capabilities",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string",
+            "description": "Filter by category (e.g., 'core-development', 'infrastructure')"
+          },
+          "search": {
+            "type": "string",
+            "description": "Search agents by name or description"
+          }
+        }
+      }
+    },
+    {
+      "name": "get_agent_info",
+      "description": "Get detailed information about a specific sub-agent",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "agentId": {
+            "type": "string",
+            "description": "The agent ID (e.g., 'backend-developer')"
+          }
+        },
+        "required": ["agentId"]
+      }
+    },
+    {
+      "name": "analyze_task",
+      "description": "Analyze a task and recommend appropriate sub-agents",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "task": {
+            "type": "string",
+            "description": "The task description to analyze"
+          }
+        },
+        "required": ["task"]
+      }
+    },
+    {
+      "name": "execute_workflow",
+      "description": "Execute a defined workflow with multiple sub-agents",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workflow": {
+            "type": "string",
+            "description": "Workflow definition in YAML or JSON format"
+          },
+          "variables": {
+            "type": "object",
+            "description": "Variables to pass to the workflow"
+          }
+        },
+        "required": ["workflow"]
+      }
+    },
+    {
+      "name": "get_execution_status",
+      "description": "Get the status of a running or completed execution",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "executionId": {
+            "type": "string",
+            "description": "The execution ID to query"
+          }
+        },
+        "required": ["executionId"]
+      }
+    },
+    {
+      "name": "get_metrics",
+      "description": "Get execution metrics and statistics",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "agentId": {
+            "type": "string",
+            "description": "Filter metrics by agent (optional)"
+          },
+          "timeRange": {
+            "type": "string",
+            "description": "Time range: 'hour', 'day', 'week', 'month' (optional)"
+          }
+        }
+      }
+    }
+  ],
+  "resources": [
+    {
+      "uri": "maestro://agents",
+      "name": "Agent Registry",
+      "description": "The complete registry of available sub-agents",
+      "mimeType": "application/json"
+    },
+    {
+      "uri": "maestro://workflows",
+      "name": "Saved Workflows",
+      "description": "User-defined workflow templates",
+      "mimeType": "application/json"
+    },
+    {
+      "uri": "maestro://logs/{executionId}",
+      "name": "Execution Logs",
+      "description": "Logs for a specific execution",
+      "mimeType": "application/json"
+    }
+  ],
+  "prompts": [
+    {
+      "name": "orchestrate",
+      "description": "Orchestrate a complex task with Maestro",
+      "arguments": [
+        {
+          "name": "task",
+          "description": "The task to orchestrate",
+          "required": true
+        }
+      ]
+    },
+    {
+      "name": "create_workflow",
+      "description": "Create a new workflow from a task description",
+      "arguments": [
+        {
+          "name": "description",
+          "description": "Description of the workflow to create",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "settings": {
+    "maxConcurrentExecutions": 5,
+    "defaultTimeout": 300000,
+    "enableLogging": true,
+    "logLevel": "info"
+  }
+}
