@@ -1,174 +1,27 @@
 {
-  "$schema": "https://claude.ai/schemas/plugin-marketplace-v1.json",
-  "id": "maestro",
-  "name": "Maestro",
-  "version": "1.0.0",
-  "description": "Master orchestrator plugin that bundles 100+ specialized sub-agents for intelligent task routing and multi-agent collaboration",
-  "shortDescription": "Orchestrate 100+ specialized AI agents like a symphony conductor",
-  "author": {
+  "name": "maestro-plugins",
+  "owner": {
     "name": "Maestro Team",
     "email": "team@maestro-plugin.dev",
-    "url": "https://github.com/maestro-plugin/maestro"
+    "url": "https://github.com/maestro-plugin"
   },
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/maestro-plugin/maestro"
-  },
-  "homepage": "https://github.com/maestro-plugin/maestro",
-  "bugs": {
-    "url": "https://github.com/maestro-plugin/maestro/issues"
-  },
-  "keywords": [
-    "orchestrator",
-    "multi-agent",
-    "subagents",
-    "automation",
-    "workflow",
-    "mcp",
-    "ai-agents",
-    "task-routing"
-  ],
-  "categories": [
-    "productivity",
-    "developer-tools",
-    "automation",
-    "ai-assistants"
-  ],
-  "icon": "icons/maestro-icon.svg",
-  "banner": "icons/maestro-banner.svg",
-  "screenshots": [
-    {
-      "path": "screenshots/orchestration.png",
-      "caption": "Intelligent task orchestration across multiple agents"
-    },
-    {
-      "path": "screenshots/parallel-execution.png",
-      "caption": "Parallel execution of independent tasks"
-    },
-    {
-      "path": "screenshots/agent-catalog.png",
-      "caption": "Browse 100+ specialized agents"
-    }
-  ],
-  "features": [
-    "100+ specialized sub-agents across 10 categories",
-    "Intelligent task analysis and routing",
-    "Parallel and sequential execution support",
-    "Workflow orchestration with dependencies",
-    "MCP server for advanced integrations",
-    "Circuit breaker and retry patterns",
-    "Execution metrics and logging"
-  ],
-  "requirements": {
-    "claude-code": ">=1.0.0",
-    "node": ">=18.0.0"
-  },
-  "permissions": {
-    "read": true,
-    "write": true,
-    "execute": true,
-    "network": true
-  },
-  "commands": [
+  "plugins": [
     {
       "name": "maestro",
-      "description": "Orchestrate tasks by analyzing and routing to appropriate sub-agents",
-      "usage": "/maestro <task description>"
-    },
-    {
-      "name": "list-subagents",
-      "description": "List all available sub-agents",
-      "usage": "/list-subagents [--category <name>] [--search <query>]"
-    },
-    {
-      "name": "agent-info",
-      "description": "Get detailed information about a specific agent",
-      "usage": "/agent-info <agent-name>"
-    },
-    {
-      "name": "parallel-execute",
-      "description": "Execute multiple agents in parallel",
-      "usage": "/parallel-execute agent1:\"task1\" agent2:\"task2\""
-    },
-    {
-      "name": "workflow",
-      "description": "Define and execute multi-step workflows",
-      "usage": "/workflow agent1:\"task\" -> agent2:\"task\""
+      "version": "1.0.0",
+      "description": "Master orchestrator plugin with 100+ specialized sub-agents for intelligent task routing",
+      "license": "MIT",
+      "repository": "https://github.com/maestro-plugin/maestro",
+      "homepage": "https://github.com/maestro-plugin/maestro",
+      "keywords": [
+        "orchestrator",
+        "multi-agent",
+        "subagents",
+        "automation",
+        "workflow",
+        "mcp"
+      ],
+      "source": "./maestro-plugin"
     }
-  ],
-  "agentCategories": [
-    {
-      "id": "core-development",
-      "name": "Core Development",
-      "count": 11
-    },
-    {
-      "id": "language-specialists",
-      "name": "Language Specialists",
-      "count": 28
-    },
-    {
-      "id": "infrastructure",
-      "name": "Infrastructure",
-      "count": 14
-    },
-    {
-      "id": "quality-security",
-      "name": "Quality & Security",
-      "count": 12
-    },
-    {
-      "id": "data-ai",
-      "name": "Data & AI",
-      "count": 12
-    },
-    {
-      "id": "developer-experience",
-      "name": "Developer Experience",
-      "count": 13
-    },
-    {
-      "id": "specialized-domains",
-      "name": "Specialized Domains",
-      "count": 12
-    },
-    {
-      "id": "business-product",
-      "name": "Business & Product",
-      "count": 10
-    },
-    {
-      "id": "meta-orchestration",
-      "name": "Meta & Orchestration",
-      "count": 9
-    },
-    {
-      "id": "research-analysis",
-      "name": "Research & Analysis",
-      "count": 6
-    }
-  ],
-  "mcp": {
-    "enabled": true,
-    "server": "mcp/server.js",
-    "config": "mcp/config.json"
-  },
-  "installation": {
-    "type": "copy",
-    "postInstall": "scripts/install.sh"
-  },
-  "changelog": {
-    "1.0.0": {
-      "date": "2024-01-08",
-      "changes": [
-        "Initial release",
-        "100+ specialized sub-agents",
-        "Intelligent task routing",
-        "Parallel execution support",
-        "MCP server integration",
-        "Workflow orchestration"
-      ]
-    }
-  }
+  ]
 }
