@@ -17,7 +17,27 @@ Maestro acts as a master orchestrator—like a skilled conductor leading an orch
 
 ## Installation
 
-### Quick Install
+Choose the installation method that best fits your needs:
+
+### Option 1: Symlink (Recommended for Development)
+
+Best for local development—changes are reflected immediately without reinstalling.
+
+```bash
+# Clone the repository
+git clone https://github.com/maestro-plugin/maestro.git ~/Projects/maestro-plugin
+
+# Create symlink to plugins directory
+# macOS:
+ln -sf ~/Projects/maestro-plugin ~/.claude/plugins/maestro
+
+# Linux:
+ln -sf ~/Projects/maestro-plugin ~/.config/claude-code/plugins/maestro
+```
+
+### Option 2: Install Script
+
+Automated installation with dependency setup and configuration.
 
 ```bash
 # Clone the repository
@@ -30,17 +50,84 @@ cd maestro
 ./scripts/install.sh
 ```
 
-### Manual Install
+The script will:
+- Detect your OS and set the correct plugin path
+- Copy plugin files to the plugins directory
+- Install npm dependencies
+- Create default configuration at `~/.maestro/config.json`
+- Verify the installation
 
-1. Copy the plugin to your Claude Code plugins directory:
-   - macOS: `~/.claude/plugins/maestro`
-   - Linux: `~/.config/claude-code/plugins/maestro`
+### Option 3: Direct Copy
 
-2. Install dependencies (if using MCP server):
-   ```bash
-   cd ~/.claude/plugins/maestro
-   npm install
-   ```
+Simple copy to the plugins directory.
+
+```bash
+# Clone the repository
+git clone https://github.com/maestro-plugin/maestro.git
+
+# Copy to plugins directory
+# macOS:
+cp -r maestro ~/.claude/plugins/maestro
+
+# Linux:
+cp -r maestro ~/.config/claude-code/plugins/maestro
+
+# Install dependencies (optional, for MCP server)
+cd ~/.claude/plugins/maestro
+npm install
+```
+
+### Option 4: Settings Configuration
+
+Add the plugin path to your Claude Code settings.
+
+1. Edit `~/.claude/settings.json`:
+
+```json
+{
+  "plugins": {
+    "maestro": {
+      "path": "/absolute/path/to/maestro-plugin"
+    }
+  }
+}
+```
+
+2. Restart Claude Code to load the plugin.
+
+### Post-Installation
+
+After installation, restart Claude Code or reload plugins, then verify:
+
+```bash
+# List available agents
+/list-subagents
+
+# Get help
+/agent-info maestro
+```
+
+### Uninstallation
+
+```bash
+# Remove the plugin
+rm -rf ~/.claude/plugins/maestro
+
+# Remove configuration (optional)
+rm -rf ~/.maestro
+
+# If using symlink
+rm ~/.claude/plugins/maestro
+```
+
+### Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| Plugin not loading | Restart Claude Code; check plugin.json is valid JSON |
+| Commands not found | Verify symlink/copy completed; check `~/.claude/plugins/maestro` exists |
+| MCP server errors | Run `npm install` in plugin directory; check Node.js 18+ installed |
+| Permission denied | Run `chmod +x scripts/*.sh` to make scripts executable |
 
 ## Quick Start
 
