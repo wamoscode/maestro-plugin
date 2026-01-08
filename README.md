@@ -1,10 +1,12 @@
 # Maestro Plugin for Claude Code
 
-A comprehensive orchestration plugin that bundles 100+ specialized sub-agents for intelligent task routing and multi-agent collaboration in Claude Code.
+A comprehensive orchestration plugin that bundles 100+ specialized sub-agents for intelligent task routing and multi-agent collaboration in Claude Code. Now with **Context-Driven Development** methodology for structured project management.
 
 ## Overview
 
 Maestro acts as a master orchestrator—like a skilled conductor leading an orchestra—analyzing user tasks, determining the optimal sub-agent(s) to invoke, coordinating their execution (parallel or sequential), and synthesizing their results into cohesive deliverables.
+
+**New in v1.2**: Context-Driven Development brings structured project management with tracks, specifications, and implementation plans—inspired by [Conductor](https://github.com/gemini-cli-extensions/conductor).
 
 ## Features
 
@@ -12,8 +14,118 @@ Maestro acts as a master orchestrator—like a skilled conductor leading an orch
 - **Intelligent Task Routing**: Automatic analysis and routing to appropriate specialists
 - **Parallel Execution**: Run independent agents simultaneously for faster results
 - **Workflow Orchestration**: Define complex multi-step workflows with dependencies
-- **Error Handling**: Built-in retry logic, circuit breakers, and fallback strategies
+- **Context-Driven Development**: Structured tracks with specs, plans, and checkpoints
+- **Track Management**: Create, implement, and revert feature/bug tracks
+- **Workflow Templates**: TDD, Agile, and Minimal methodologies
+- **Code Style Guides**: TypeScript, Python, Go, and Rust templates
+- **Git Integration**: Commit tracking and git-aware revert functionality
 - **MCP Integration**: Full Model Context Protocol support for advanced integrations
+
+## Quick Start
+
+### Context-Driven Development (Recommended)
+
+For structured project management:
+
+```bash
+# 1. Initialize your project
+/maestro:setup
+
+# 2. Create a feature track
+/maestro:newTrack "Add user authentication with JWT"
+
+# 3. Check status
+/maestro:status
+
+# 4. Implement the track
+/maestro:implement
+
+# 5. Revert if needed
+/maestro:revert TRACK-001
+```
+
+### Quick Orchestration
+
+For quick, untracked tasks:
+
+```bash
+/maestro Build a REST API for user management with authentication
+```
+
+## Commands
+
+### Context-Driven Development Commands
+
+| Command | Description |
+|---------|-------------|
+| `/maestro:setup` | Initialize project context (product, tech stack, workflow) |
+| `/maestro:newTrack` | Create a new feature, bug, or chore track |
+| `/maestro:status` | View project progress and track status |
+| `/maestro:implement` | Execute track implementation with sub-agents |
+| `/maestro:revert` | Git-aware rollback of tracks or tasks |
+
+### Orchestration Commands
+
+| Command | Description |
+|---------|-------------|
+| `/maestro` | Quick task orchestration with auto-routing |
+| `/workflow` | Define and execute multi-step agent workflows |
+| `/parallel-execute` | Run multiple agents in parallel |
+| `/list-subagents` | Browse available agents by category |
+| `/agent-info` | Get detailed information about an agent |
+
+## Context-Driven Development
+
+### How It Works
+
+```
+Context → Specification & Planning → Implementation with Sub-Agents
+```
+
+1. **Setup**: Define your product, tech stack, and workflow methodology
+2. **Track**: Create tracked work units with specs and implementation plans
+3. **Implement**: Execute plans with automatic sub-agent routing
+4. **Monitor**: Track progress with status and checkpoints
+5. **Iterate**: Revert cleanly if needed, re-implement with improvements
+
+### Project Structure
+
+After running `/maestro:setup`, your project includes:
+
+```
+maestro/
+├── product.md              # Product definition and vision
+├── product-guidelines.md   # Core principles and constraints
+├── tech-stack.md          # Technology decisions
+├── workflow.md            # Development methodology
+├── code-styleguide.md     # Code standards
+├── tracks.md              # Track index
+└── tracks/
+    └── TRACK-001/
+        ├── metadata.json  # Track metadata
+        ├── spec.md        # Requirements specification
+        └── plan.md        # Implementation plan
+```
+
+### Workflow Templates
+
+Choose your development methodology:
+
+- **TDD (Test-Driven Development)**: Write tests first, then implement
+- **Agile**: Iterative development with flexibility
+- **Minimal**: Lightweight tracking for quick tasks
+
+### Track Lifecycle
+
+```
+[ ] Pending → [~] In Progress → [x] Complete
+```
+
+Each task in a track:
+- Gets assigned to appropriate sub-agents
+- Follows your chosen workflow
+- Records commit SHAs
+- Supports phase checkpoints
 
 ## Installation
 
@@ -105,6 +217,9 @@ After installation, restart Claude Code or reload plugins, then verify:
 
 # Get help
 /agent-info maestro
+
+# Initialize project (new feature!)
+/maestro:setup
 ```
 
 ### Uninstallation
@@ -129,41 +244,76 @@ rm ~/.claude/plugins/maestro
 | MCP server errors | Run `npm install` in plugin directory; check Node.js 18+ installed |
 | Permission denied | Run `chmod +x scripts/*.sh` to make scripts executable |
 
-## Quick Start
+## Usage Examples
 
-### Basic Orchestration
+### Initialize a New Project
 
-```
-/maestro Build a REST API for user management with authentication
-```
-
-### List Available Agents
-
-```
-/list-subagents
-/list-subagents --category infrastructure
-/list-subagents --search security
+```bash
+/maestro:setup
 ```
 
-### Get Agent Details
+Walks you through:
+- Product definition
+- Technology stack
+- Workflow selection (TDD/Agile/Minimal)
+- Code style guide selection
 
-```
-/agent-info backend-developer
-/agent-info security-auditor
+### Create and Implement a Feature
+
+```bash
+# Create a track with interactive Q&A
+/maestro:newTrack "Add payment processing with Stripe"
+
+# Or with a description
+/maestro:newTrack --type feature "Implement user dashboard"
+
+# Start implementation
+/maestro:implement TRACK-001
+
+# Check progress
+/maestro:status
 ```
 
-### Parallel Execution
+### Quick Orchestration (No Tracking)
 
-```
-/parallel-execute \
-  frontend-developer:"Build React components" \
-  backend-developer:"Create API endpoints"
+```bash
+# Simple task
+/maestro Build a REST API for user management
+
+# With specific agents
+/maestro --agents=backend-developer,security-auditor Add password reset
+
+# Dry run to see plan
+/maestro --dry-run Implement OAuth2 authentication
 ```
 
 ### Define Workflows
 
-```
+```bash
+# Sequential workflow
 /workflow backend-developer:"Build API" -> qa-expert:"Test" -> devops-engineer:"Deploy"
+
+# Parallel groups
+/workflow [frontend-developer | backend-developer] -> qa-expert
+
+# From track plan
+/workflow --from-track TRACK-001
+```
+
+### Browse Agents
+
+```bash
+# All agents
+/list-subagents
+
+# By category
+/list-subagents infrastructure
+
+# Project-relevant agents
+/list-subagents --project
+
+# Search
+/list-subagents --search security
 ```
 
 ## Agent Categories
@@ -230,43 +380,41 @@ The plugin includes an MCP server for advanced integrations:
 
 ```
 maestro-plugin/
-├── plugin.json           # Plugin metadata
-├── commands/             # Slash commands
-│   ├── maestro.md
-│   ├── list-subagents.md
-│   ├── agent-info.md
-│   ├── parallel-execute.md
-│   └── workflow.md
-├── subagents/            # Agent definitions
-│   ├── maestro.md        # Main orchestrator
-│   ├── registry.json     # Agent registry
-│   ├── 01-core-development/
-│   ├── 02-language-specialists/
-│   ├── 03-infrastructure/
-│   ├── 04-quality-security/
-│   ├── 05-data-ai/
-│   ├── 06-developer-experience/
-│   ├── 07-specialized-domains/
-│   ├── 08-business-product/
-│   ├── 09-meta-orchestration/
-│   └── 10-research-analysis/
-├── hooks/                # Execution hooks
-│   ├── pre-execution.js
-│   ├── post-execution.js
-│   ├── error-handler.js
-│   └── agent-router.js
-├── skills/               # Specialized skills
-│   ├── task-analyzer.js
-│   ├── result-aggregator.js
-│   ├── dependency-resolver.js
-│   └── context-manager.js
-├── scripts/              # Automation scripts
-│   ├── install.sh
-│   ├── sync-agents.sh
-│   └── validate.sh
-└── mcp/                  # MCP server
-    ├── config.json
-    └── server.js
+├── plugin.json              # Plugin metadata
+├── commands/                # Slash commands
+│   ├── maestro.md          # Main orchestration (track-aware)
+│   ├── maestro/            # Context-driven commands
+│   │   ├── setup.md        # Project initialization
+│   │   ├── newTrack.md     # Track creation
+│   │   ├── status.md       # Progress monitoring
+│   │   ├── implement.md    # Track implementation
+│   │   └── revert.md       # Git-aware rollback
+│   ├── workflow.md         # Workflow orchestration
+│   ├── list-subagents.md   # Agent browser
+│   ├── agent-info.md       # Agent details
+│   └── parallel-execute.md # Parallel execution
+├── templates/               # Project templates
+│   ├── workflow-tdd.md     # TDD methodology
+│   ├── workflow-agile.md   # Agile methodology
+│   ├── workflow-minimal.md # Minimal tracking
+│   ├── tracks.md           # Track index template
+│   ├── code_styleguides/   # Language style guides
+│   │   ├── typescript.md
+│   │   ├── python.md
+│   │   ├── go.md
+│   │   └── rust.md
+│   └── track/              # Track templates
+│       ├── spec.md
+│       ├── plan.md
+│       └── metadata.json
+├── subagents/              # Agent definitions (117 agents)
+│   ├── maestro.md          # Main orchestrator
+│   ├── registry.json       # Agent registry
+│   └── [10 category folders]
+├── hooks/                  # Execution hooks
+├── skills/                 # Specialized skills
+├── scripts/                # Automation scripts
+└── mcp/                    # MCP server
 ```
 
 ## Contributing
@@ -279,4 +427,5 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Credits
 
-Sub-agent definitions based on [awesome-claude-code-subagents](https://github.com/VoltAgent/awesome-claude-code-subagents).
+- Sub-agent definitions based on [awesome-claude-code-subagents](https://github.com/VoltAgent/awesome-claude-code-subagents)
+- Context-Driven Development inspired by [Conductor](https://github.com/gemini-cli-extensions/conductor)
