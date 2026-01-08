@@ -1,7 +1,7 @@
 {
   "name": "maestro",
-  "version": "1.0.0",
-  "description": "Master orchestrator plugin that bundles 100+ specialized Claude Code sub-agents for intelligent task routing and multi-agent collaboration",
+  "version": "1.1.0",
+  "description": "Master orchestrator plugin with Context-Driven Development methodology and 100+ specialized sub-agents for intelligent task routing",
   "author": {
     "name": "Maestro Team",
     "url": "https://github.com/maestro-plugin"
@@ -15,6 +15,9 @@
     "multi-agent",
     "subagents",
     "automation",
-    "maestro"
+    "maestro",
+    "context-driven",
+    "tdd",
+    "workflow"
   ]
 }
