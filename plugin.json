@@ -2,12 +2,12 @@
   "name": "maestro",
   "version": "1.0.0",
   "description": "Master orchestrator plugin that bundles 100+ specialized Claude Code sub-agents for intelligent task routing and multi-agent collaboration",
-  "author": "Maestro Team",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/maestro-plugin/maestro"
+  "author": {
+    "name": "Maestro Team",
+    "url": "https://github.com/maestro-plugin"
   },
+  "license": "MIT",
+  "repository": "https://github.com/maestro-plugin/maestro",
   "keywords": [
     "claude-code",
     "plugin",
@@ -16,154 +16,5 @@
     "subagents",
     "automation",
     "maestro"
-  ],
-  "main": "maestro.js",
-  "engines": {
-    "claude-code": ">=1.0.0"
-  },
-  "categories": [
-    {
-      "id": "01-core-development",
-      "name": "Core Development",
-      "description": "Essential coding specialists for frontend, backend, API, and full-stack development",
-      "agentCount": 11
-    },
-    {
-      "id": "02-language-specialists",
-      "name": "Language Specialists",
-      "description": "Deep expertise in specific programming languages and frameworks",
-      "agentCount": 28
-    },
-    {
-      "id": "03-infrastructure",
-      "name": "Infrastructure",
-      "description": "DevOps, cloud, and deployment experts",
-      "agentCount": 14
-    },
-    {
-      "id": "04-quality-security",
-      "name": "Quality & Security",
-      "description": "Testing, code review, and security specialists",
-      "agentCount": 12
-    },
-    {
-      "id": "05-data-ai",
-      "name": "Data & AI",
-      "description": "Machine learning, data engineering, and analytics experts",
-      "agentCount": 12
-    },
-    {
-      "id": "06-developer-experience",
-      "name": "Developer Experience",
-      "description": "Tooling, productivity, and developer workflow optimization",
-      "agentCount": 13
-    },
-    {
-      "id": "07-specialized-domains",
-      "name": "Specialized Domains",
-      "description": "Domain-specific experts for blockchain, gaming, fintech, etc.",
-      "agentCount": 12
-    },
-    {
-      "id": "08-business-product",
-      "name": "Business & Product",
-      "description": "Product management, business analysis, and documentation",
-      "agentCount": 10
-    },
-    {
-      "id": "09-meta-orchestration",
-      "name": "Meta & Orchestration",
-      "description": "Multi-agent coordination and workflow management",
-      "agentCount": 9
-    },
-    {
-      "id": "10-research-analysis",
-      "name": "Research & Analysis",
-      "description": "Research, trend analysis, and competitive intelligence",
-      "agentCount": 6
-    }
-  ],
-  "commands": [
-    {
-      "name": "maestro",
-      "description": "Orchestrate a task by analyzing and routing to appropriate sub-agents",
-      "file": "commands/maestro.md"
-    },
-    {
-      "name": "list-subagents",
-      "description": "List all available sub-agents with their descriptions",
-      "file": "commands/list-subagents.md"
-    },
-    {
-      "name": "agent-info",
-      "description": "Get detailed information about a specific sub-agent",
-      "file": "commands/agent-info.md"
-    },
-    {
-      "name": "parallel-execute",
-      "description": "Execute multiple sub-agents in parallel",
-      "file": "commands/parallel-execute.md"
-    },
-    {
-      "name": "workflow",
-      "description": "Create and execute multi-step workflows with sub-agents",
-      "file": "commands/workflow.md"
-    }
-  ],
-  "hooks": {
-    "pre_execution": "hooks/pre-execution.js",
-    "post_execution": "hooks/post-execution.js",
-    "error_handler": "hooks/error-handler.js",
-    "agent_router": "hooks/agent-router.js"
-  },
-  "skills": [
-    {
-      "name": "task-analyzer",
-      "description": "Analyzes user tasks and determines optimal sub-agent routing",
-      "file": "skills/task-analyzer.js"
-    },
-    {
-      "name": "result-aggregator",
-      "description": "Aggregates and synthesizes results from multiple sub-agents",
-      "file": "skills/result-aggregator.js"
-    },
-    {
-      "name": "dependency-resolver",
-      "description": "Resolves dependencies between sub-agent tasks",
-      "file": "skills/dependency-resolver.js"
-    },
-    {
-      "name": "context-manager",
-      "description": "Manages shared context across sub-agent executions",
-      "file": "skills/context-manager.js"
-    }
-  ],
-  "mcp": {
-    "server": "mcp/server.js",
-    "config": "mcp/config.json"
-  },
-  "scripts": {
-    "install": "scripts/install.sh",
-    "update": "scripts/update.sh",
-    "sync-agents": "scripts/sync-agents.sh",
-    "validate": "scripts/validate.sh"
-  },
-  "permissions": {
-    "read": true,
-    "write": true,
-    "execute": true,
-    "network": true,
-    "fileSystem": {
-      "allowedPaths": ["./", "~/.claude/"]
-    }
-  },
-  "settings": {
-    "maxParallelAgents": 5,
-    "defaultTimeout": 300000,
-    "enableLogging": true,
-    "logLevel": "info",
-    "isolatedContexts": true,
-    "autoRetry": true,
-    "maxRetries": 3
-  }
+  ]
 }
