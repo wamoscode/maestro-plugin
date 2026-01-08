@@ -7,27 +7,39 @@ aliases: [st, progress]
 
 # /maestro:status Command
 
-Display the current status of your project, including all tracks, progress metrics, and active work.
+Display the current status of your project or workspace, including all tracks, progress metrics, and active work.
+
+**Multi-Project Support**: In workspaces, view status per-project, across all projects, or for cross-project tracks.
 
 ## What It Does
 
-1. **Shows project overview** - Product name, total tracks, overall progress
+1. **Shows project/workspace overview** - Product name, total tracks, overall progress
 2. **Lists all tracks** - With status, type, and completion percentage
 3. **Highlights active work** - Current task and assigned agents
 4. **Identifies blockers** - Any issues preventing progress
 5. **Shows recent activity** - Recently completed tasks
+6. **Submodule status** - Git submodule sync state (workspace mode)
 
 ## Usage
 
 ```bash
-# Full project status
+# Current project status
 /maestro:status
+
+# All projects in workspace
+/maestro:status --all
 
 # Specific track status
 /maestro:status TRACK-001
 
-# Show only active tracks
-/maestro:status --active
+# Cross-project tracks only
+/maestro:status --cross-project
+
+# Specific project status
+/maestro:status --project backend
+
+# Include submodule state
+/maestro:status --submodules
 
 # Compact view
 /maestro:status --compact
@@ -37,14 +49,19 @@ Display the current status of your project, including all tracks, progress metri
 
 | Option | Description |
 |--------|-------------|
+| `--all` | Show status for all projects in workspace |
+| `--project <name>` | Show status for specific project |
+| `--cross-project` | Show only cross-project tracks |
+| `--submodules` | Include git submodule status |
 | `--active` | Show only in-progress tracks |
 | `--completed` | Show only completed tracks |
 | `--compact` | Minimal output format |
 | `--verbose` | Show detailed task breakdown |
+| `--json` | Output as JSON |
 
-## Output Format
+## Output Formats
 
-### Full Project Status
+### Single Project Status
 
 ```
 ══════════════════════════════════════════════════════════
@@ -77,9 +94,6 @@ Current Task:
     Status: In Progress
     Started: 10 minutes ago
 
-Next Task:
-  ○ Task 2.4: Create token refresh endpoint
-
 ──────────────────────────────────────────────────────────
   ALL TRACKS
 ──────────────────────────────────────────────────────────
@@ -90,110 +104,200 @@ Next Task:
 │ TRACK-002 │ Feature │ User Authentication    │ Active    │ 40%      │
 │ TRACK-003 │ Feature │ Dashboard Analytics    │ Pending   │ 0%       │
 
+══════════════════════════════════════════════════════════
+```
+
+### Workspace Status (--all)
+
+```
+══════════════════════════════════════════════════════════
+  WORKSPACE STATUS: my-platform
+══════════════════════════════════════════════════════════
+
+Projects: 4  │  Total Tracks: 12  │  Active: 3  │  Cross-Project: 2
+
 ──────────────────────────────────────────────────────────
-  RECENT ACTIVITY
+  PROJECT SUMMARY
 ──────────────────────────────────────────────────────────
 
-✓ Task 2.2: Create user model (sql-pro) - 25m ago
-✓ Task 2.1: Setup auth routes (backend-developer) - 1h ago
-✓ Task 1.5: Initialize project structure (devops-engineer) - 2h ago
+│ Project      │ Type       │ Tracks │ Active │ Progress │
+│──────────────│────────────│────────│────────│──────────│
+│ frontend *   │ repository │ 5      │ 1      │ 65%      │
+│ backend      │ submodule  │ 3      │ 1      │ 40%      │
+│ shared-libs  │ submodule  │ 2      │ 0      │ 100%     │
+│ packages/ui  │ package    │ 2      │ 1      │ 30%      │
+
+* = active project
 
 ──────────────────────────────────────────────────────────
-  BLOCKERS
+  CROSS-PROJECT TRACKS
 ──────────────────────────────────────────────────────────
 
-None
+│ ID        │ Title                    │ Projects              │ Progress │
+│───────────│──────────────────────────│───────────────────────│──────────│
+│ CROSS-001 │ Shared Authentication    │ frontend, backend     │ 60%      │
+│ CROSS-002 │ API Version 2            │ backend, shared-libs  │ 25%      │
+
+──────────────────────────────────────────────────────────
+  SUBMODULE STATUS
+──────────────────────────────────────────────────────────
+
+│ Submodule   │ Commit  │ Status                        │
+│─────────────│─────────│───────────────────────────────│
+│ backend     │ abc1234 │ ✓ In sync with parent         │
+│ shared-libs │ def5678 │ ⚠ 2 commits ahead (unpushed) │
+
+──────────────────────────────────────────────────────────
+  ACTIVE WORK
+──────────────────────────────────────────────────────────
+
+frontend:
+  → FE-003: Add dark mode toggle (ui-designer)
+
+backend:
+  → BACK-002: Implement rate limiting (backend-developer)
+
+CROSS-001:
+  → Task 3.2: Frontend auth integration (frontend-developer)
 
 ══════════════════════════════════════════════════════════
 ```
 
-### Specific Track Status
-
-```
-/maestro:status TRACK-002
-```
+### Cross-Project Status (--cross-project)
 
 ```
 ══════════════════════════════════════════════════════════
-  TRACK-002: User Authentication
+  CROSS-PROJECT TRACKS
 ══════════════════════════════════════════════════════════
 
-Type: Feature
-Priority: High
-Created: 2024-01-08 10:00:00
-Status: In Progress
-
-Specification: maestro/tracks/TRACK-002/spec.md
-Plan: maestro/tracks/TRACK-002/plan.md
+Workspace: my-platform
+Total Cross-Project Tracks: 2
 
 ──────────────────────────────────────────────────────────
-  PROGRESS
+  CROSS-001: Shared Authentication
 ──────────────────────────────────────────────────────────
 
-Phase 1: Database Setup       [████████████████████] 100%
-Phase 2: Backend Auth         [████████░░░░░░░░░░░░] 40%
-Phase 3: Frontend Integration [░░░░░░░░░░░░░░░░░░░░] 0%
-Phase 4: Testing & Security   [░░░░░░░░░░░░░░░░░░░░] 0%
+Projects: frontend, backend, shared-libs
+Status: Active
+Overall Progress: [████████████░░░░░░░░] 60%
 
-Overall: [████████░░░░░░░░░░░░] 35% (7/20 tasks)
+Per-Project Progress:
+  shared-libs [████████████████████] 100% (3/3 tasks)
+  backend     [████████████████░░░░] 80%  (4/5 tasks)
+  frontend    [████░░░░░░░░░░░░░░░░] 20%  (1/5 tasks)
 
-──────────────────────────────────────────────────────────
-  PHASE 2 TASKS
-──────────────────────────────────────────────────────────
+Current Tasks:
+  → frontend: Task 3.2 - Auth integration (frontend-developer)
 
-[x] 2.1 Setup auth routes (backend-developer)
-    Commit: a1b2c3d
-[x] 2.2 Create user model (sql-pro)
-    Commit: e4f5g6h
-[~] 2.3 Implement JWT middleware (security-auditor)
-    Started: 10 minutes ago
-[ ] 2.4 Create token refresh endpoint
-[ ] 2.5 Add password hashing
+Commits:
+  shared-libs: abc1234, def5678
+  backend: ghi9012, jkl3456, mno7890
 
 ──────────────────────────────────────────────────────────
-  COMMITS
+  CROSS-002: API Version 2
 ──────────────────────────────────────────────────────────
 
-a1b2c3d - feat: add auth route handlers (2h ago)
-e4f5g6h - feat: create user database model (1h ago)
+Projects: backend, shared-libs
+Status: Active
+Overall Progress: [█████░░░░░░░░░░░░░░░] 25%
+
+Per-Project Progress:
+  shared-libs [██████████░░░░░░░░░░] 50% (2/4 tasks)
+  backend     [░░░░░░░░░░░░░░░░░░░░] 0%  (0/6 tasks)
+
+Blocked: Waiting on shared-libs types to complete
 
 ══════════════════════════════════════════════════════════
 ```
 
-### Compact View
+### Specific Project Status (--project backend)
 
 ```
-/maestro:status --compact
+══════════════════════════════════════════════════════════
+  PROJECT: backend
+══════════════════════════════════════════════════════════
+
+Type: Git Submodule
+Parent Workspace: my-platform
+Track Prefix: BACK
+
+Git Status:
+  Branch: main
+  Remote: git@github.com:org/backend.git
+  Status: 2 commits ahead of parent reference
+  Uncommitted: 0 files
+
+──────────────────────────────────────────────────────────
+  TRACKS
+──────────────────────────────────────────────────────────
+
+│ ID       │ Type    │ Title              │ Status │ Progress │
+│──────────│─────────│────────────────────│────────│──────────│
+│ BACK-001 │ Feature │ User API           │ Done   │ 100%     │
+│ BACK-002 │ Feature │ Rate Limiting      │ Active │ 60%      │
+│ BACK-003 │ Bug     │ Memory Leak Fix    │ Pending│ 0%       │
+
+Cross-Project Participation:
+  CROSS-001: Shared Authentication (80% complete)
+  CROSS-002: API Version 2 (0% - waiting)
+
+──────────────────────────────────────────────────────────
+  ACTIVE WORK
+──────────────────────────────────────────────────────────
+
+BACK-002: Rate Limiting
+  → Task 3: Implement sliding window counter
+    Agent: backend-developer
+    Started: 15 minutes ago
+
+══════════════════════════════════════════════════════════
+```
+
+### Compact Workspace View
+
+```
+/maestro:status --all --compact
 ```
 
 ```
-Maestro: My Application │ 3 tracks │ 33% complete
+Workspace: my-platform │ 4 projects │ 12 tracks │ 45% complete
 
-TRACK-001 Chore   Project Setup         ████████████████████ 100%
-TRACK-002 Feature User Authentication   ████████░░░░░░░░░░░░  40% ← active
-TRACK-003 Feature Dashboard Analytics   ░░░░░░░░░░░░░░░░░░░░   0%
+frontend *   ████████████████░░░░ 65%  │ 5 tracks │ 1 active
+backend      ████████░░░░░░░░░░░░ 40%  │ 3 tracks │ 1 active
+shared-libs  ████████████████████ 100% │ 2 tracks │ 0 active
+packages/ui  ██████░░░░░░░░░░░░░░ 30%  │ 2 tracks │ 1 active
 
-Current: Task 2.3 - Implement JWT middleware (security-auditor)
+Cross-Project: CROSS-001 (60%), CROSS-002 (25%)
+
+Active: FE-003, BACK-002, CROSS-001/Task-3.2
 ```
 
 ## Examples
 
 ```bash
-# See what's currently being worked on
-/maestro:status --active
+# See all workspace activity
+/maestro:status --all
 
-# Check specific track progress
-/maestro:status FEAT-042
+# Check specific project
+/maestro:status --project backend
 
-# Get full task breakdown
-/maestro:status TRACK-002 --verbose
+# View cross-project track details
+/maestro:status CROSS-001
+
+# Check submodule sync status
+/maestro:status --submodules
+
+# Export status as JSON
+/maestro:status --all --json > status.json
 ```
 
 ## Related Commands
 
+- `/maestro:projects` - Switch between projects
 - `/maestro:newTrack` - Create a new track
 - `/maestro:implement` - Continue implementation
 - `/maestro:revert` - Undo track or task
+- `/maestro:workspace sync` - Sync submodules
 
 ---
 
@@ -207,105 +311,137 @@ When this command is invoked, follow this protocol:
 1. Check maestro/ directory exists
    - If not: "No Maestro project found. Run /maestro:setup first."
 
-2. Check required files:
-   - maestro/tracks.md
-   - maestro/product.md
-   - If missing: "Project not fully initialized."
+2. Determine context:
+   - Check for workspace.json → Workspace mode
+   - Check for project.json → Project-in-workspace mode
+   - Else: Single project mode
+
+3. Check required files based on mode
 ```
 
-### Step 1: Read Project Context
+### Step 1: Read Context
 
+**Single Project:**
 ```
 1. Read maestro/product.md for project name
 2. Read maestro/workflow.md for workflow type
 3. Read maestro/tracks.md for track index
 ```
 
+**Workspace:**
+```
+1. Read maestro/workspace.json
+2. Read maestro/cross-project-tracks.md
+3. For each project (or specified --project):
+   - Read <project>/maestro/tracks.md
+   - Read <project>/maestro/project.json
+```
+
 ### Step 2: Gather Track Data
 
 ```
-For each track in tracks.md:
-  1. Read maestro/tracks/<TRACK-ID>/metadata.json
-  2. Read maestro/tracks/<TRACK-ID>/plan.md
+For each track in tracks:
+  1. Read tracks/<TRACK-ID>/metadata.json
+  2. Read tracks/<TRACK-ID>/plan.md
   3. Parse task statuses:
      - [ ] = pending
      - [~] = in progress
      - [x] = completed
   4. Calculate progress percentage
   5. Identify current phase
+  6. For cross-project: calculate per-project progress
 ```
 
 ### Step 3: Calculate Metrics
 
+**Single Project:**
 ```
 - Total tracks
-- Tracks by status (pending, active, completed)
-- Total tasks across all tracks
+- Tracks by status
+- Total tasks
 - Tasks by status
-- Overall progress percentage
+- Overall progress
 ```
 
-### Step 4: Identify Active Work
+**Workspace:**
+```
+Per-project metrics plus:
+- Total projects
+- Projects by activity
+- Cross-project track count
+- Workspace-level progress
+- Submodule sync status
+```
+
+### Step 4: Submodule Status (if applicable)
+
+```
+For each submodule project:
+  1. Run: git submodule status <path>
+  2. Parse current commit
+  3. Compare to parent's expected ref
+  4. Check for uncommitted changes
+  5. Report sync status:
+     - "In sync"
+     - "N commits ahead"
+     - "N commits behind"
+     - "Modified locally"
+```
+
+### Step 5: Identify Active Work
 
 ```
 Find tasks marked [~] (in progress):
 - Track ID
 - Task number and description
+- Project (for cross-project)
 - Assigned agents
-- Start time (if recorded)
+- Start time
 
-Find next pending task:
-- First [ ] task in active track
+For workspace: group by project
 ```
 
-### Step 5: Check for Blockers
+### Step 6: Check for Blockers
 
 ```
 Scan plan.md files for:
-- Tasks marked with BLOCKED
+- Tasks marked BLOCKED
 - Unmet dependencies
-- Failed verification checkpoints
-```
+- Failed checkpoints
+- Submodule sync issues
 
-### Step 6: Gather Recent Activity
-
-```
-Read git log or plan.md for:
-- Recently completed tasks (last 5)
-- Commit SHAs
-- Timestamps
-- Assigned agents
+For cross-project:
+- Check inter-project dependencies
+- Verify shared code availability
 ```
 
 ### Step 7: Format Output
 
-Based on options (--compact, --verbose, specific track):
-- Format appropriate view
-- Use box drawing characters for visual structure
-- Highlight active items
-- Show progress bars
+Based on options and mode:
+- Single project view
+- Workspace summary view
+- Cross-project detail view
+- Specific project view
+- Compact view
 
-### Specific Track Mode
-
-If track ID provided:
-```
-1. Validate track exists
-2. Read all track files
-3. Show detailed phase breakdown
-4. List all tasks with status
-5. Show commit history for track
-```
+Use visual formatting:
+- Box drawing characters
+- Progress bars
+- Status indicators
+- Color hints (if supported)
 
 ### Error Handling
 
 ```
-If track not found:
+Track not found:
   "Track <ID> not found. Use /maestro:status to see all tracks."
 
-If no tracks exist:
+Project not found (workspace):
+  "Project '<name>' not found. Available: frontend, backend, ..."
+
+No tracks exist:
   "No tracks found. Create one with /maestro:newTrack"
 
-If files corrupted:
-  Report specific file issue
-  Suggest manual inspection
+Submodule issues:
+  "Submodule '<name>' has sync issues. Run /maestro:workspace sync"
 ```

@@ -9,6 +9,8 @@ aliases: [impl, execute, work]
 
 Execute the implementation plan for a track, routing tasks to specialized sub-agents and following your chosen workflow methodology.
 
+**Multi-Project Support**: Execute cross-project tracks across multiple repositories with coordinated commits and submodule handling.
+
 ## What It Does
 
 1. **Selects track** - Continues active track or picks next pending
@@ -16,7 +18,8 @@ Execute the implementation plan for a track, routing tasks to specialized sub-ag
 3. **Routes tasks** - Assigns work to appropriate sub-agents
 4. **Follows workflow** - Adheres to TDD/Agile/Minimal methodology
 5. **Updates progress** - Marks tasks complete, records commits
-6. **Verifies phases** - Runs checkpoints at phase boundaries
+6. **Handles submodules** - Commits and updates parent references
+7. **Verifies phases** - Runs checkpoints at phase boundaries
 
 ## Usage
 
@@ -26,6 +29,18 @@ Execute the implementation plan for a track, routing tasks to specialized sub-ag
 
 # Implement specific track
 /maestro:implement TRACK-002
+
+# Cross-project track
+/maestro:implement CROSS-001
+
+# Execute across all involved projects
+/maestro:implement CROSS-001 --all-projects
+
+# Implement specific project portion
+/maestro:implement CROSS-001 --project frontend
+
+# Sync submodules before implementing
+/maestro:implement TRACK-001 --sync-submodules
 
 # Implement specific task
 /maestro:implement TRACK-002 --task 2.3
@@ -40,31 +55,19 @@ Execute the implementation plan for a track, routing tasks to specialized sub-ag
 |--------|-------------|
 | `--task <id>` | Start from specific task |
 | `--phase <num>` | Start from specific phase |
+| `--project <name>` | Only implement tasks for this project |
+| `--all-projects` | Execute cross-project track across all projects |
+| `--sync-submodules` | Sync submodules before starting |
 | `--dry-run` | Show plan without executing |
 | `--skip-tests` | Skip test tasks (not recommended) |
 | `--continue` | Auto-continue to next task |
+| `--commit-strategy <type>` | Override workspace commit strategy |
 
 ## Implementation Flow
 
-### 1. Track Selection
+### Single Project Implementation
 
-If no track specified:
-- Check for in-progress track (status: `[~]`)
-- If none, select first pending track
-- If multiple pending, ask user to choose
-
-### 2. Context Loading
-
-Before starting work:
-- Read `spec.md` for requirements
-- Read `plan.md` for task list
-- Read `workflow.md` for methodology
-- Read `tech-stack.md` for technology context
-- Read `code-styleguide.md` for code standards
-
-### 3. Task Execution
-
-For each task:
+Standard flow for project-specific tracks:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -76,38 +79,183 @@ For each task:
 └─────────────────────────────────────────────────────────┘
 
 Step 1: Mark task in progress
-  plan.md: [~] Task 2.3
-
 Step 2: Route to sub-agent(s)
-  → security-auditor: Review JWT requirements
-  → backend-developer: Implement middleware
-
-Step 3: Follow workflow
-  TDD: Write tests → Implement → Refactor
-
+Step 3: Follow workflow (TDD/Agile/Minimal)
 Step 4: Verify completion
-  - Tests pass ✓
-  - Code style ✓
-  - No linting errors ✓
-
 Step 5: Commit changes
-  git commit -m "feat: implement JWT middleware"
-  SHA: a1b2c3d
-
 Step 6: Update plan
-  plan.md: [x] Task 2.3
-  Commit: a1b2c3d
 ```
 
-### 4. Phase Checkpoints
+### Cross-Project Implementation
+
+For tracks spanning multiple repositories:
+
+```
+══════════════════════════════════════════════════════════
+  CROSS-PROJECT IMPLEMENTATION: CROSS-001
+══════════════════════════════════════════════════════════
+
+Track: Shared Authentication
+Projects: frontend, backend, shared-libs
+Commit Strategy: Atomic
+
+──────────────────────────────────────────────────────────
+  PROJECT ORDER
+──────────────────────────────────────────────────────────
+
+1. shared-libs (dependency - execute first)
+   Tasks: 1.1, 1.2, 1.3
+
+2. backend (depends on shared-libs)
+   Tasks: 2.1, 2.2, 2.3, 2.4, 2.5
+
+3. frontend (depends on backend, shared-libs)
+   Tasks: 3.1, 3.2, 3.3, 3.4, 3.5
+
+4. Integration
+   Tasks: 4.1, 4.2
+
+Proceed? (Y/n)
+```
+
+### Submodule Workflow
+
+When implementing in a submodule:
+
+```
+══════════════════════════════════════════════════════════
+  IMPLEMENTING IN SUBMODULE: shared-libs
+══════════════════════════════════════════════════════════
+
+Current state:
+  Parent expects: abc1234
+  Submodule at:   abc1234 (in sync)
+
+──────────────────────────────────────────────────────────
+
+Executing Task 1.1: Create auth types
+  Agent: typescript-pro
+  [████████████████████] Complete
+
+Committing to submodule...
+  git commit -m "feat: add authentication type definitions"
+  SHA: def5678
+
+──────────────────────────────────────────────────────────
+  SUBMODULE UPDATE
+──────────────────────────────────────────────────────────
+
+Submodule 'shared-libs' has new commits:
+  Before: abc1234
+  After:  def5678
+
+Update parent repository reference? (Y/n)
+  → Creates commit in parent: "chore: update shared-libs submodule"
+```
+
+## Cross-Project Commit Strategies
+
+### Atomic (Default)
+
+Coordinated commits across all repositories:
+
+```
+1. Complete all tasks in dependency order
+2. Commit to submodules first
+3. Update parent submodule references
+4. Create linked commit messages
+
+Commits:
+  shared-libs: def5678 "feat: add auth types"
+  backend:     ghi9012 "feat: implement auth API"
+  frontend:    jkl3456 "feat: add auth UI"
+  parent:      mno7890 "chore: update submodules for auth"
+```
+
+### Independent
+
+Each project commits separately:
+
+```
+1. Execute tasks project by project
+2. Commit after each project's tasks complete
+3. Submodule references update independently
+
+shared-libs: Complete → Commit
+backend: Complete → Commit
+frontend: Complete → Commit
+```
+
+### Synchronized
+
+Linked commit messages with cross-references:
+
+```
+All commits include:
+  Related: CROSS-001
+  See also: <other-repo>#<sha>
+
+Example:
+  "feat: implement auth API
+
+  Related: CROSS-001
+  Frontend: frontend#jkl3456
+  Shared: shared-libs#def5678"
+```
+
+## Task Execution in Cross-Project
+
+### Per-Project Context
+
+Each project's tasks use that project's context:
+
+```
+Executing in 'frontend':
+  - Uses frontend/maestro/tech-stack.md
+  - Uses frontend/maestro/code-styleguide.md
+  - Commits to frontend repository
+
+Executing in 'backend':
+  - Uses backend/maestro/tech-stack.md
+  - Uses backend/maestro/code-styleguide.md
+  - Commits to backend repository
+```
+
+### Parallel Execution (Same Project)
+
+Tasks without dependencies run in parallel:
+
+```
+Executing in parallel (frontend):
+  → Task 3.1: Build login form (frontend-developer)
+  → Task 3.2: Create auth API client (typescript-pro)
+  → Task 3.3: Add auth state management (react-specialist)
+
+[████████████████░░░░] 80%
+```
+
+### Sequential Execution (Cross-Project)
+
+Projects execute in dependency order:
+
+```
+shared-libs tasks complete ✓
+  ↓ dependency satisfied
+backend tasks running...
+  ↓ when complete
+frontend tasks start
+```
+
+## Phase Checkpoints
 
 At the end of each phase:
 
 ```
 ══════════════════════════════════════════════════════════
-  PHASE 2 CHECKPOINT
+  PHASE 2 CHECKPOINT (backend)
 ══════════════════════════════════════════════════════════
 
+Project: backend
 Verifying Phase 2: Backend Auth
 
 Tasks:
@@ -122,14 +270,16 @@ Checks:
   [x] Tests passing (24/24)
   [x] Coverage: 87% (target: 80%)
   [x] No linting errors
-  [x] No type errors
+
+Commits for this phase:
+  ghi9012, jkl3456, mno7890
 
 Phase 2 complete. Continue to Phase 3? (Y/n)
 ```
 
-### 5. Track Completion
+## Track Completion
 
-When all phases complete:
+### Single Project
 
 ```
 ══════════════════════════════════════════════════════════
@@ -143,137 +293,70 @@ Summary:
   - 20 tasks executed
   - 15 commits created
   - 142 tests passing
-  - 89% code coverage
 
 Commits: a1b2c3d..z9y8x7w
-
-Documentation sync:
-  - product.md: No changes needed
-  - tech-stack.md: Added JWT library
-
-Options:
-  1. Archive track
-  2. Delete track files
-  3. Keep as-is
-
-What would you like to do? (1/2/3)
 ```
 
-## Sub-Agent Orchestration
-
-Tasks are routed to sub-agents based on:
-
-### Task Type Mapping
-
-| Task Contains | Primary Agent | Support Agents |
-|---------------|---------------|----------------|
-| database, schema, migration | sql-pro | database-administrator |
-| api, endpoint, route | api-designer | backend-developer |
-| ui, component, page | frontend-developer | ui-designer |
-| test, spec, coverage | qa-expert | test-automator |
-| security, auth, jwt | security-auditor | backend-developer |
-| deploy, ci, pipeline | devops-engineer | deployment-engineer |
-| docker, kubernetes | kubernetes-specialist | devops-engineer |
-| docs, readme | documentation-engineer | technical-writer |
-
-### Language Detection
-
-Based on `tech-stack.md`:
-- TypeScript project → typescript-pro
-- Python project → python-pro
-- Go project → golang-pro
-- React frontend → react-specialist
-- Django backend → django-developer
-
-### Parallel Execution
-
-When tasks have no dependencies:
+### Cross-Project
 
 ```
-Executing in parallel:
-  → Task 3.1: Build login form (frontend-developer)
-  → Task 3.2: Create auth API client (typescript-pro)
-  → Task 3.3: Add auth state management (react-specialist)
+══════════════════════════════════════════════════════════
+  CROSS-PROJECT TRACK COMPLETE: CROSS-001
+══════════════════════════════════════════════════════════
 
-[████████████████░░░░] 80% - Waiting for all tasks...
+Shared Authentication implementation complete!
 
-All parallel tasks complete.
-```
+Per-Project Summary:
+  shared-libs: 3 tasks, 3 commits
+  backend:     5 tasks, 5 commits
+  frontend:    5 tasks, 4 commits
+  integration: 2 tasks, 1 commit
 
-## Workflow Integration
+Total:
+  - 15 tasks executed
+  - 13 commits across 4 projects
+  - All tests passing
 
-### TDD Workflow
+Submodule Updates:
+  shared-libs: abc1234 → xyz7890 (pushed)
+  Parent reference: Updated in commit qrs4567
 
-```
-For each task:
-1. WRITE TESTS
-   → qa-expert: Create failing tests
-   → Run tests, confirm failure
+Commits by project:
+  shared-libs: def5678, ghi9012, jkl3456
+  backend: mno7890, pqr1234, stu5678, vwx9012
+  frontend: abc3456, def7890, ghi1234, jkl5678
+  parent: mno9012
 
-2. IMPLEMENT
-   → primary-agent: Write code to pass tests
-   → Run tests, confirm passing
-
-3. REFACTOR
-   → code-reviewer: Suggest improvements
-   → primary-agent: Apply refactoring
-   → Run tests, confirm still passing
-
-4. COMMIT
-   → git commit with conventional message
-   → Record SHA in plan.md
-```
-
-### Agile Workflow
-
-```
-For each task:
-1. IMPLEMENT
-   → primary-agent: Build functionality
-
-2. TEST
-   → qa-expert: Write tests for new code
-
-3. REVIEW
-   → code-reviewer: Quick review
-
-4. COMMIT
-   → git commit
-   → Record SHA
-```
-
-### Minimal Workflow
-
-```
-For each task:
-1. IMPLEMENT
-   → primary-agent: Build and test
-
-2. COMMIT
-   → git commit
-   → Record SHA
+Archive track? (Y/n)
 ```
 
 ## Examples
 
 ```bash
-# Start implementing the authentication feature
+# Start implementing authentication
 /maestro:implement TRACK-002
 
-# Continue from where we left off
-/maestro:implement
+# Continue cross-project implementation
+/maestro:implement CROSS-001 --all-projects
 
-# See what task 3.1 involves
-/maestro:implement --task 3.1 --dry-run
+# Only work on backend portion
+/maestro:implement CROSS-001 --project backend
 
-# Auto-continue through all tasks
-/maestro:implement --continue
+# Sync submodules first
+/maestro:implement CROSS-001 --sync-submodules
+
+# See execution plan
+/maestro:implement CROSS-001 --dry-run
+
+# Override commit strategy
+/maestro:implement CROSS-001 --commit-strategy independent
 ```
 
 ## Related Commands
 
 - `/maestro:status` - Check progress
-- `/maestro:newTrack` - Create new track
+- `/maestro:projects switch` - Change active project
+- `/maestro:workspace sync` - Sync submodules
 - `/maestro:revert` - Undo changes
 
 ---
@@ -286,15 +369,18 @@ When this command is invoked, follow this protocol:
 
 ```
 1. Verify maestro/ directory exists
-2. Verify required files:
-   - maestro/product.md
-   - maestro/tech-stack.md
-   - maestro/workflow.md
-   - maestro/tracks.md
 
-3. If track ID provided:
+2. Determine context:
+   - Check for workspace.json → Workspace mode
+   - Check for project.json → Project-in-workspace mode
+   - Else: Single project mode
+
+3. Verify required files based on mode
+
+4. If track ID provided:
    - Verify track directory exists
    - Verify spec.md and plan.md exist
+   - If CROSS-* track: verify it's a workspace
 ```
 
 ### Step 1: Track Selection
@@ -302,6 +388,7 @@ When this command is invoked, follow this protocol:
 ```
 If track ID provided:
   - Use specified track
+  - If CROSS-* track in workspace: load cross-project config
 Else if track with status "in_progress" exists:
   - Continue that track
 Else if pending tracks exist:
@@ -313,6 +400,7 @@ Else:
 
 ### Step 2: Load Context
 
+**Single Project:**
 ```
 Read and parse:
 1. maestro/tracks/<TRACK-ID>/spec.md
@@ -323,19 +411,60 @@ Read and parse:
 6. maestro/code-styleguide.md (if exists)
 ```
 
-### Step 3: Find Current Task
+**Cross-Project:**
+```
+Read workspace config:
+1. maestro/workspace.json
+2. maestro/tracks/<CROSS-ID>/spec.md
+3. maestro/tracks/<CROSS-ID>/plan.md
+4. maestro/tracks/<CROSS-ID>/metadata.json
+
+For each involved project:
+1. <project>/maestro/tech-stack.md
+2. <project>/maestro/code-styleguide.md
+3. <project>/maestro/project.json
+```
+
+### Step 3: Determine Execution Order (Cross-Project)
+
+```
+1. Parse project dependencies from plan.md
+2. Build execution graph
+3. Topological sort for order:
+   - Submodules first
+   - Then dependent projects
+   - Integration last
+4. Verify all project paths accessible
+```
+
+### Step 4: Submodule Sync (if --sync-submodules or submodules exist)
+
+```
+For each submodule project:
+  1. Check current state: git submodule status
+  2. If behind: git submodule update
+  3. If dirty: warn user, ask to proceed
+  4. Record state in metadata.json submoduleState.before
+```
+
+### Step 5: Find Current Task
 
 ```
 Parse plan.md for task statuses:
 - Find first task marked [~] (resume in-progress)
 - Or find first task marked [ ] (start next)
 
+For cross-project:
+- Respect project order
+- Find first incomplete task in current project
+- When project complete, move to next
+
 Verify dependencies:
 - All tasks in "Depends" must be [x]
-- If not: select different task or report blocker
+- For cross-project: check cross-project dependencies
 ```
 
-### Step 4: Update Task Status
+### Step 6: Update Task Status
 
 ```
 1. Change task from [ ] to [~] in plan.md
@@ -343,91 +472,86 @@ Verify dependencies:
    - status: "in_progress"
    - updated: current timestamp
    - current_task: task ID
+   - For cross-project: current_project
 ```
 
-### Step 5: Route to Sub-Agent(s)
+### Step 7: Route to Sub-Agent(s)
 
 ```
 1. Parse task for agent assignment
-2. If multiple agents:
-   - Primary agent leads
-   - Secondary agents provide input
-3. Invoke sub-agent with context:
-   - Task description
-   - Specification reference
-   - Tech stack
-   - Style guide
-   - Workflow rules
+2. Load project-specific context:
+   - tech-stack.md from task's project
+   - code-styleguide.md from task's project
+3. Invoke sub-agent with context
 ```
 
-### Step 6: Execute According to Workflow
+### Step 8: Execute According to Workflow
 
-**TDD Workflow:**
-```
-1. qa-expert: Write failing tests
-2. Verify tests fail
-3. primary-agent: Implement to pass tests
-4. Verify tests pass
-5. code-reviewer: Suggest refactoring
-6. primary-agent: Apply refactoring
-7. Verify tests still pass
-```
+Follow workflow from project's workflow.md or workspace workflow.md.
 
-**Agile Workflow:**
-```
-1. primary-agent: Implement feature
-2. qa-expert: Write tests
-3. Verify tests pass
-4. code-reviewer: Quick review
-```
+### Step 9: Commit Changes
 
-**Minimal Workflow:**
-```
-1. primary-agent: Implement and basic test
-```
-
-### Step 7: Commit Changes
-
+**Single Project:**
 ```
 1. Stage relevant files: git add <files>
-2. Create commit message:
-   - Type based on task (feat/fix/refactor/test)
-   - Reference track ID
-   - Include task description
+2. Create commit message
 3. Commit: git commit -m "<message>"
 4. Capture SHA
 ```
 
-### Step 8: Update Plan
+**Submodule Project:**
+```
+1. cd to submodule directory
+2. Stage and commit in submodule
+3. Capture SHA
+4. Record in metadata.json commitsByProject.<project>
+5. Ask to update parent reference:
+   - If yes: cd to parent, stage submodule, commit
+   - Record parent commit in submoduleState.after
+```
+
+**Cross-Project (Atomic):**
+```
+After all projects complete:
+1. Verify all submodule commits
+2. Update parent references for all submodules
+3. Create final parent commit linking all changes
+```
+
+### Step 10: Update Plan
 
 ```
 1. Mark task [x] in plan.md
 2. Add commit SHA:
    - **Commit**: <SHA>
-3. Update metadata.json:
-   - current_task: next task or null
-   - updated: timestamp
+   - For cross-project: note which project
+3. Update metadata.json
 ```
 
-### Step 9: Check for Phase Completion
+### Step 11: Check Phase/Project Completion
 
 ```
 If all tasks in current phase are [x]:
   1. Run phase checkpoint verification
   2. Display checkpoint summary
   3. Ask for confirmation to continue
-  4. If confirmed: proceed to next phase
+
+For cross-project:
+  If all tasks for current project are [x]:
+    1. Run project checkpoint
+    2. If submodule: prompt for parent update
+    3. Move to next project
 ```
 
-### Step 10: Check for Track Completion
+### Step 12: Check Track Completion
 
 ```
-If all tasks in all phases are [x]:
+If all tasks in all phases/projects are [x]:
   1. Run final verification
   2. Display track completion summary
-  3. Offer archive/delete/keep options
-  4. Update tracks.md status to "completed"
-  5. Update metadata.json status
+  3. For cross-project: show per-project summary
+  4. Show submodule update summary
+  5. Update tracks.md status to "completed"
 ```
 
 ### Error Handling
@@ -436,15 +560,17 @@ If all tasks in all phases are [x]:
 If task fails:
   1. Keep task marked [~]
   2. Record error in plan.md
-  3. Ask user how to proceed:
-     - Retry task
-     - Skip task (mark with note)
-     - Abort implementation
+  3. Ask user how to proceed
 
-If agent fails:
-  1. Report agent error
-  2. Suggest alternative agents
-  3. Allow manual intervention
+If submodule commit fails:
+  1. Report submodule error
+  2. Offer to abort or retry
+  3. If partial commits: warn about inconsistent state
+
+If cross-project dependency unmet:
+  1. Identify blocking project/task
+  2. Suggest completing blocker first
+  3. Or allow force continue with warning
 ```
 
 ### Validation Rules
@@ -453,10 +579,10 @@ If agent fails:
 After EVERY operation:
   - Verify file writes succeeded
   - Verify git operations succeeded
-  - If failure: HALT and report
+  - For submodules: verify parent sync state
 
 Before marking task complete:
   - Verify expected changes exist
   - Verify tests pass (if applicable)
-  - Verify no linting errors (if applicable)
+  - For submodules: verify commit recorded
 ```

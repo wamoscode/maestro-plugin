@@ -7,22 +7,43 @@
   "created": "{{CREATED_TIMESTAMP}}",
   "updated": "{{UPDATED_TIMESTAMP}}",
   "workflow": "{{WORKFLOW_TYPE}}",
+
+  "scope": {
+    "type": "single-project",
+    "project": "{{PROJECT_NAME}}",
+    "projects": [],
+    "submodules": [],
+    "crossProject": false
+  },
+
   "agents": {
     "primary": ["{{PRIMARY_AGENT_1}}", "{{PRIMARY_AGENT_2}}"],
-    "secondary": ["{{SECONDARY_AGENT_1}}"]
+    "secondary": ["{{SECONDARY_AGENT_1}}"],
+    "perProject": {}
   },
+
   "phases": {
-    "total": {{PHASE_COUNT}},
+    "total": "{{PHASE_COUNT}}",
     "completed": 0,
     "current": 1
   },
+
   "tasks": {
-    "total": {{TASK_COUNT}},
+    "total": "{{TASK_COUNT}}",
     "completed": 0,
     "in_progress": 0,
-    "pending": {{TASK_COUNT}}
+    "pending": "{{TASK_COUNT}}",
+    "perProject": {}
   },
+
   "commits": [],
+  "commitsByProject": {},
+
+  "submoduleState": {
+    "before": {},
+    "after": {}
+  },
+
   "current_task": null,
   "blockers": [],
   "notes": [],

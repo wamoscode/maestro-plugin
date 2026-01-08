@@ -6,7 +6,9 @@ A comprehensive orchestration plugin that bundles 100+ specialized sub-agents fo
 
 Maestro acts as a master orchestrator—like a skilled conductor leading an orchestra—analyzing user tasks, determining the optimal sub-agent(s) to invoke, coordinating their execution (parallel or sequential), and synthesizing their results into cohesive deliverables.
 
-**New in v1.2**: Context-Driven Development brings structured project management with tracks, specifications, and implementation plans—inspired by [Conductor](https://github.com/gemini-cli-extensions/conductor).
+**New in v1.3**: Multi-project workspace support with git submodule handling, cross-project tracks, and coordinated commits across repositories.
+
+**v1.2**: Context-Driven Development brings structured project management with tracks, specifications, and implementation plans—inspired by [Conductor](https://github.com/gemini-cli-extensions/conductor).
 
 ## Features
 
@@ -15,6 +17,9 @@ Maestro acts as a master orchestrator—like a skilled conductor leading an orch
 - **Parallel Execution**: Run independent agents simultaneously for faster results
 - **Workflow Orchestration**: Define complex multi-step workflows with dependencies
 - **Context-Driven Development**: Structured tracks with specs, plans, and checkpoints
+- **Multi-Project Workspaces**: Manage multiple repositories as a unified workspace
+- **Git Submodule Support**: First-class handling of submodules with parent reference tracking
+- **Cross-Project Tracks**: Features spanning multiple repositories with coordinated commits
 - **Track Management**: Create, implement, and revert feature/bug tracks
 - **Workflow Templates**: TDD, Agile, and Minimal methodologies
 - **Code Style Guides**: TypeScript, Python, Go, and Rust templates
@@ -58,11 +63,21 @@ For quick, untracked tasks:
 
 | Command | Description |
 |---------|-------------|
-| `/maestro:setup` | Initialize project context (product, tech stack, workflow) |
+| `/maestro:setup` | Initialize project/workspace context |
 | `/maestro:newTrack` | Create a new feature, bug, or chore track |
 | `/maestro:status` | View project progress and track status |
 | `/maestro:implement` | Execute track implementation with sub-agents |
 | `/maestro:revert` | Git-aware rollback of tracks or tasks |
+
+### Multi-Project Commands
+
+| Command | Description |
+|---------|-------------|
+| `/maestro:workspace` | Manage workspace configuration and projects |
+| `/maestro:projects` | List and switch between projects |
+| `/maestro:setup --workspace` | Initialize multi-project workspace |
+| `/maestro:newTrack --cross-project` | Create track spanning multiple repos |
+| `/maestro:status --all` | View all projects status |
 
 ### Orchestration Commands
 
@@ -126,6 +141,70 @@ Each task in a track:
 - Follows your chosen workflow
 - Records commit SHAs
 - Supports phase checkpoints
+
+## Multi-Project Workspaces
+
+### Overview
+
+For projects with multiple repositories, git submodules, or monorepo structures:
+
+```bash
+# Initialize as workspace
+/maestro:setup --workspace
+
+# Add projects
+/maestro:workspace add ./frontend
+/maestro:workspace add ./backend --type submodule
+
+# Switch between projects
+/maestro:projects switch backend
+
+# Create cross-project track
+/maestro:newTrack --cross-project "Add shared authentication"
+```
+
+### Workspace Structure
+
+```
+workspace-root/
+├── maestro/
+│   ├── workspace.json          # Workspace configuration
+│   ├── product.md              # Umbrella product vision
+│   ├── cross-project-tracks.md # Cross-project track index
+│   └── projects/               # Project registry
+├── frontend/
+│   ├── maestro/
+│   │   ├── project.json        # Links to workspace
+│   │   └── tracks.md           # Project tracks
+│   └── src/
+├── backend/                    # Git submodule
+│   ├── maestro/
+│   └── src/
+└── .gitmodules
+```
+
+### Git Submodule Support
+
+Maestro handles submodules automatically:
+- Detects submodules from `.gitmodules`
+- Commits to submodule repos first
+- Updates parent repository references
+- Supports atomic or independent commit strategies
+
+### Cross-Project Tracks
+
+Features spanning multiple repositories:
+
+```bash
+# Create cross-project track
+/maestro:newTrack --cross-project "Implement shared auth"
+
+# Implement across all projects
+/maestro:implement CROSS-001 --all-projects
+
+# Revert with submodule handling
+/maestro:revert CROSS-001 --include-submodules
+```
 
 ## Installation
 

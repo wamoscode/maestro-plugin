@@ -1,0 +1,39 @@
+{
+  "$schema": "./workspace.schema.json",
+  "version": "1.0",
+  "name": "{{WORKSPACE_NAME}}",
+  "description": "{{WORKSPACE_DESCRIPTION}}",
+  "type": "workspace",
+
+  "projects": {},
+
+  "submodules": {
+    "autoDetect": true,
+    "syncOnImplement": true,
+    "commitStrategy": "atomic"
+  },
+
+  "crossProjectTracks": {
+    "enabled": true,
+    "requireApproval": false,
+    "prefix": "CROSS"
+  },
+
+  "settings": {
+    "defaultProject": null,
+    "activeProject": null,
+    "inheritToProjects": [
+      "product-guidelines",
+      "workflow"
+    ]
+  },
+
+  "git": {
+    "trackSubmodules": true,
+    "atomicCommits": false,
+    "linkedMessages": true
+  },
+
+  "created": "{{CREATED_DATE}}",
+  "updated": "{{UPDATED_DATE}}"
+}

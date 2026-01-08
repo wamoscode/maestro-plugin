@@ -1,0 +1,41 @@
+{
+  "$schema": "./project.schema.json",
+  "version": "1.0",
+  "name": "{{PROJECT_NAME}}",
+  "description": "{{PROJECT_DESCRIPTION}}",
+  "type": "project",
+
+  "workspace": {
+    "linked": false,
+    "path": null,
+    "inherit": []
+  },
+
+  "git": {
+    "type": "repository",
+    "remote": "origin",
+    "branch": "main",
+    "isSubmodule": false,
+    "submodulePath": null
+  },
+
+  "dependencies": {
+    "projects": [],
+    "submodules": []
+  },
+
+  "tracks": {
+    "prefix": "{{TRACK_PREFIX}}",
+    "counter": 0
+  },
+
+  "techStack": {
+    "detected": [],
+    "languages": [],
+    "frameworks": [],
+    "databases": []
+  },
+
+  "created": "{{CREATED_DATE}}",
+  "updated": "{{UPDATED_DATE}}"
+}
