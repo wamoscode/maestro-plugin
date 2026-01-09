@@ -2,14 +2,20 @@
   "name": "maestro",
   "version": "1.4.0",
   "description": "Master orchestrator plugin with Context-Driven Development methodology, multi-project workspaces, git submodule support, and 40+ specialized sub-agents for intelligent task routing",
+  "main": "mcp/server.js",
   "author": {
     "name": "Maestro Team",
-    "url": "https://github.com/wamoscode/maestro-plugin"
+    "url": "https://github.com/wamoscode"
   },
   "license": "MIT",
-  "repository": "https://github.com/wamoscode/maestro-plugin",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wamoscode/maestro-plugin.git"
+  },
   "homepage": "https://github.com/wamoscode/maestro-plugin#readme",
-  "bugs": "https://github.com/wamoscode/maestro-plugin/issues",
+  "bugs": {
+    "url": "https://github.com/wamoscode/maestro-plugin/issues"
+  },
   "keywords": [
     "claude-code",
     "plugin",
@@ -19,12 +25,14 @@
     "automation",
     "maestro",
     "context-driven",
+    "cdd",
     "tdd",
     "workflow",
     "multi-project",
     "workspace",
     "git-submodules",
-    "cross-project"
+    "cross-project",
+    "mcp"
   ],
   "engines": {
     "claude-code": ">=1.0.0"
@@ -51,5 +59,13 @@
     "crossProjectTracks": true,
     "workflowTemplates": ["tdd", "agile", "minimal"],
     "subagentCount": 42
+  },
+  "directories": {
+    "commands": "commands",
+    "subagents": "subagents",
+    "hooks": "hooks",
+    "skills": "skills",
+    "templates": "templates",
+    "mcp": "mcp"
   }
 }

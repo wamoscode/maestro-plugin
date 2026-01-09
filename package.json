@@ -15,14 +15,31 @@
     "plugin",
     "orchestrator",
     "multi-agent",
-    "mcp",
-    "maestro"
+    "subagents",
+    "automation",
+    "maestro",
+    "context-driven",
+    "cdd",
+    "tdd",
+    "workflow",
+    "multi-project",
+    "workspace",
+    "git-submodules",
+    "cross-project",
+    "mcp"
   ],
-  "author": "Maestro Team",
+  "author": {
+    "name": "Maestro Team",
+    "url": "https://github.com/wamoscode"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/wamoscode/maestro-plugin"
+    "url": "https://github.com/wamoscode/maestro-plugin.git"
+  },
+  "homepage": "https://github.com/wamoscode/maestro-plugin#readme",
+  "bugs": {
+    "url": "https://github.com/wamoscode/maestro-plugin/issues"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -34,6 +51,7 @@
     "hooks/",
     "skills/",
     "scripts/",
+    "templates/",
     "mcp/",
     "README.md",
     "LICENSE"
