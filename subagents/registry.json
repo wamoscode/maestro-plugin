@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "totalAgents": 117,
+  "totalAgents": 42,
   "categories": {
     "01-core-development": {
       "name": "Core Development",
@@ -33,18 +33,7 @@
         {"id": "vue-expert", "file": "02-language-specialists/vue-expert.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
         {"id": "nextjs-developer", "file": "02-language-specialists/nextjs-developer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
         {"id": "django-developer", "file": "02-language-specialists/django-developer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "sql-pro", "file": "02-language-specialists/sql-pro.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "angular-architect", "file": "02-language-specialists/angular-architect.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "csharp-developer", "file": "02-language-specialists/csharp-developer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "swift-expert", "file": "02-language-specialists/swift-expert.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "kotlin-specialist", "file": "02-language-specialists/kotlin-specialist.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "php-pro", "file": "02-language-specialists/php-pro.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "rails-expert", "file": "02-language-specialists/rails-expert.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "spring-boot-engineer", "file": "02-language-specialists/spring-boot-engineer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "dotnet-core-expert", "file": "02-language-specialists/dotnet-core-expert.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "flutter-expert", "file": "02-language-specialists/flutter-expert.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "elixir-expert", "file": "02-language-specialists/elixir-expert.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "cpp-pro", "file": "02-language-specialists/cpp-pro.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]}
+        {"id": "sql-pro", "file": "02-language-specialists/sql-pro.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]}
       ]
     },
     "03-infrastructure": {
@@ -54,15 +43,7 @@
         {"id": "devops-engineer", "file": "03-infrastructure/devops-engineer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
         {"id": "kubernetes-specialist", "file": "03-infrastructure/kubernetes-specialist.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
         {"id": "terraform-engineer", "file": "03-infrastructure/terraform-engineer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "cloud-architect", "file": "03-infrastructure/cloud-architect.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep", "WebFetch"]},
-        {"id": "azure-infra-engineer", "file": "03-infrastructure/azure-infra-engineer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "platform-engineer", "file": "03-infrastructure/platform-engineer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "sre-engineer", "file": "03-infrastructure/sre-engineer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "deployment-engineer", "file": "03-infrastructure/deployment-engineer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "network-engineer", "file": "03-infrastructure/network-engineer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "database-administrator", "file": "03-infrastructure/database-administrator.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "security-engineer", "file": "03-infrastructure/security-engineer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "windows-infra-admin", "file": "03-infrastructure/windows-infra-admin.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]}
+        {"id": "cloud-architect", "file": "03-infrastructure/cloud-architect.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep", "WebFetch"]}
       ]
     },
     "04-quality-security": {
@@ -72,15 +53,7 @@
         {"id": "qa-expert", "file": "04-quality-security/qa-expert.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
         {"id": "security-auditor", "file": "04-quality-security/security-auditor.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
         {"id": "code-reviewer", "file": "04-quality-security/code-reviewer.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep"]},
-        {"id": "debugger", "file": "04-quality-security/debugger.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "test-automator", "file": "04-quality-security/test-automator.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "performance-engineer", "file": "04-quality-security/performance-engineer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "penetration-tester", "file": "04-quality-security/penetration-tester.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "compliance-auditor", "file": "04-quality-security/compliance-auditor.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep"]},
-        {"id": "architect-reviewer", "file": "04-quality-security/architect-reviewer.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep"]},
-        {"id": "accessibility-tester", "file": "04-quality-security/accessibility-tester.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "error-detective", "file": "04-quality-security/error-detective.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "chaos-engineer", "file": "04-quality-security/chaos-engineer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]}
+        {"id": "debugger", "file": "04-quality-security/debugger.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]}
       ]
     },
     "05-data-ai": {
@@ -89,16 +62,7 @@
       "agents": [
         {"id": "data-engineer", "file": "05-data-ai/data-engineer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
         {"id": "ml-engineer", "file": "05-data-ai/ml-engineer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "prompt-engineer", "file": "05-data-ai/prompt-engineer.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep", "WebFetch"]},
-        {"id": "data-scientist", "file": "05-data-ai/data-scientist.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "data-analyst", "file": "05-data-ai/data-analyst.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "ai-engineer", "file": "05-data-ai/ai-engineer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "llm-architect", "file": "05-data-ai/llm-architect.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep", "WebFetch"]},
-        {"id": "nlp-engineer", "file": "05-data-ai/nlp-engineer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "mlops-engineer", "file": "05-data-ai/mlops-engineer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "postgres-pro", "file": "05-data-ai/postgres-pro.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "database-optimizer", "file": "05-data-ai/database-optimizer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "machine-learning-engineer", "file": "05-data-ai/machine-learning-engineer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]}
+        {"id": "prompt-engineer", "file": "05-data-ai/prompt-engineer.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep", "WebFetch"]}
       ]
     },
     "06-developer-experience": {
@@ -106,18 +70,7 @@
       "description": "Tooling, productivity, and developer workflow optimization",
       "agents": [
         {"id": "documentation-engineer", "file": "06-developer-experience/documentation-engineer.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep"]},
-        {"id": "refactoring-specialist", "file": "06-developer-experience/refactoring-specialist.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "cli-developer", "file": "06-developer-experience/cli-developer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "tooling-engineer", "file": "06-developer-experience/tooling-engineer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "build-engineer", "file": "06-developer-experience/build-engineer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "git-workflow-manager", "file": "06-developer-experience/git-workflow-manager.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "dependency-manager", "file": "06-developer-experience/dependency-manager.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "dx-optimizer", "file": "06-developer-experience/dx-optimizer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "legacy-modernizer", "file": "06-developer-experience/legacy-modernizer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "mcp-developer", "file": "06-developer-experience/mcp-developer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "slack-expert", "file": "06-developer-experience/slack-expert.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "powershell-ui-architect", "file": "06-developer-experience/powershell-ui-architect.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "powershell-module-architect", "file": "06-developer-experience/powershell-module-architect.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]}
+        {"id": "refactoring-specialist", "file": "06-developer-experience/refactoring-specialist.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]}
       ]
     },
     "07-specialized-domains": {
@@ -125,17 +78,7 @@
       "description": "Domain-specific experts for blockchain, gaming, fintech, etc.",
       "agents": [
         {"id": "blockchain-developer", "file": "07-specialized-domains/blockchain-developer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "game-developer", "file": "07-specialized-domains/game-developer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "fintech-engineer", "file": "07-specialized-domains/fintech-engineer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "payment-integration", "file": "07-specialized-domains/payment-integration.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "iot-engineer", "file": "07-specialized-domains/iot-engineer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "embedded-systems", "file": "07-specialized-domains/embedded-systems.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "seo-specialist", "file": "07-specialized-domains/seo-specialist.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep", "WebFetch"]},
-        {"id": "api-documenter", "file": "07-specialized-domains/api-documenter.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep"]},
-        {"id": "mobile-app-developer", "file": "07-specialized-domains/mobile-app-developer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "quant-analyst", "file": "07-specialized-domains/quant-analyst.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "risk-manager", "file": "07-specialized-domains/risk-manager.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep"]},
-        {"id": "m365-admin", "file": "07-specialized-domains/m365-admin.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]}
+        {"id": "game-developer", "file": "07-specialized-domains/game-developer.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]}
       ]
     },
     "08-business-product": {
@@ -143,15 +86,7 @@
       "description": "Product management, business analysis, and documentation",
       "agents": [
         {"id": "product-manager", "file": "08-business-product/product-manager.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep", "WebFetch"]},
-        {"id": "technical-writer", "file": "08-business-product/technical-writer.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep"]},
-        {"id": "project-manager", "file": "08-business-product/project-manager.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep"]},
-        {"id": "business-analyst", "file": "08-business-product/business-analyst.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep", "WebFetch"]},
-        {"id": "scrum-master", "file": "08-business-product/scrum-master.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep"]},
-        {"id": "ux-researcher", "file": "08-business-product/ux-researcher.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep", "WebFetch"]},
-        {"id": "customer-success-manager", "file": "08-business-product/customer-success-manager.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep"]},
-        {"id": "sales-engineer", "file": "08-business-product/sales-engineer.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep", "WebFetch"]},
-        {"id": "legal-advisor", "file": "08-business-product/legal-advisor.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep"]},
-        {"id": "content-marketer", "file": "08-business-product/content-marketer.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep", "WebFetch"]}
+        {"id": "technical-writer", "file": "08-business-product/technical-writer.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep"]}
       ]
     },
     "09-meta-orchestration": {
@@ -159,26 +94,14 @@
       "description": "Multi-agent coordination and workflow management",
       "agents": [
         {"id": "multi-agent-coordinator", "file": "09-meta-orchestration/multi-agent-coordinator.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep"]},
-        {"id": "workflow-orchestrator", "file": "09-meta-orchestration/workflow-orchestrator.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "task-distributor", "file": "09-meta-orchestration/task-distributor.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep"]},
-        {"id": "context-manager", "file": "09-meta-orchestration/context-manager.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep"]},
-        {"id": "knowledge-synthesizer", "file": "09-meta-orchestration/knowledge-synthesizer.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep"]},
-        {"id": "error-coordinator", "file": "09-meta-orchestration/error-coordinator.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep"]},
-        {"id": "performance-monitor", "file": "09-meta-orchestration/performance-monitor.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]},
-        {"id": "agent-organizer", "file": "09-meta-orchestration/agent-organizer.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep"]},
-        {"id": "pied-piper", "file": "09-meta-orchestration/pied-piper.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep"]}
+        {"id": "workflow-orchestrator", "file": "09-meta-orchestration/workflow-orchestrator.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]}
       ]
     },
     "10-research-analysis": {
       "name": "Research & Analysis",
       "description": "Research, trend analysis, and competitive intelligence",
       "agents": [
-        {"id": "research-analyst", "file": "10-research-analysis/research-analyst.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep", "WebFetch", "WebSearch"]},
-        {"id": "search-specialist", "file": "10-research-analysis/search-specialist.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep", "WebSearch"]},
-        {"id": "trend-analyst", "file": "10-research-analysis/trend-analyst.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep", "WebFetch", "WebSearch"]},
-        {"id": "competitive-analyst", "file": "10-research-analysis/competitive-analyst.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep", "WebFetch", "WebSearch"]},
-        {"id": "market-researcher", "file": "10-research-analysis/market-researcher.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep", "WebFetch", "WebSearch"]},
-        {"id": "data-researcher", "file": "10-research-analysis/data-researcher.md", "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]}
+        {"id": "research-analyst", "file": "10-research-analysis/research-analyst.md", "tools": ["Read", "Write", "Edit", "Glob", "Grep", "WebFetch", "WebSearch"]}
       ]
     }
   },
@@ -186,14 +109,13 @@
     "api": ["api-designer", "backend-developer", "graphql-architect"],
     "frontend": ["frontend-developer", "react-specialist", "vue-expert", "ui-designer"],
     "backend": ["backend-developer", "django-developer", "java-architect"],
-    "database": ["sql-pro", "database-administrator", "postgres-pro", "database-optimizer"],
+    "database": ["sql-pro"],
     "devops": ["devops-engineer", "kubernetes-specialist", "terraform-engineer"],
-    "security": ["security-auditor", "penetration-tester", "security-engineer"],
-    "testing": ["qa-expert", "test-automator", "debugger"],
-    "ml": ["ml-engineer", "data-scientist", "ai-engineer"],
-    "documentation": ["documentation-engineer", "technical-writer", "api-documenter"],
-    "performance": ["performance-engineer", "database-optimizer"],
-    "mobile": ["mobile-developer", "flutter-expert", "swift-expert", "kotlin-specialist"],
+    "security": ["security-auditor"],
+    "testing": ["qa-expert", "debugger"],
+    "ml": ["ml-engineer", "data-engineer"],
+    "documentation": ["documentation-engineer", "technical-writer"],
+    "mobile": ["mobile-developer"],
     "blockchain": ["blockchain-developer"],
     "game": ["game-developer"]
   }

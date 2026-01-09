@@ -33,3 +33,6 @@ coverage/
 *.temp
 .cache/
 maestro-plugin
+
+# Folders
+docs/
