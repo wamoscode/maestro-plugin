@@ -1,18 +1,20 @@
 # Maestro Plugin for Claude Code
 
-A comprehensive orchestration plugin that bundles 100+ specialized sub-agents for intelligent task routing and multi-agent collaboration in Claude Code. Now with **Context-Driven Development** methodology for structured project management.
+A comprehensive orchestration plugin that bundles 40+ specialized sub-agents for intelligent task routing and multi-agent collaboration in Claude Code. Now with **Context-Driven Development** methodology for structured project management.
 
 ## Overview
 
 Maestro acts as a master orchestrator—like a skilled conductor leading an orchestra—analyzing user tasks, determining the optimal sub-agent(s) to invoke, coordinating their execution (parallel or sequential), and synthesizing their results into cohesive deliverables.
 
-**New in v1.3**: Multi-project workspace support with git submodule handling, cross-project tracks, and coordinated commits across repositories.
+**New in v1.4**: CDD mode activation command (`/maestro:cdd`) with mandatory sub-agent orchestration for all tasks.
+
+**v1.3**: Multi-project workspace support with git submodule handling, cross-project tracks, and coordinated commits across repositories.
 
 **v1.2**: Context-Driven Development brings structured project management with tracks, specifications, and implementation plans—inspired by [Conductor](https://github.com/gemini-cli-extensions/conductor).
 
 ## Features
 
-- **100+ Specialized Sub-Agents**: Organized into 10 categories covering all aspects of software development
+- **40+ Specialized Sub-Agents**: Organized into 10 categories covering all aspects of software development
 - **Intelligent Task Routing**: Automatic analysis and routing to appropriate specialists
 - **Parallel Execution**: Run independent agents simultaneously for faster results
 - **Workflow Orchestration**: Define complex multi-step workflows with dependencies

@@ -3,7 +3,7 @@
   "id": "maestro",
   "name": "Maestro",
   "version": "1.4.0",
-  "description": "Master orchestrator plugin with Context-Driven Development, multi-project workspaces, git submodule support, and 100+ specialized sub-agents",
+  "description": "Master orchestrator plugin with Context-Driven Development, multi-project workspaces, git submodule support, and 40+ specialized sub-agents",
   "main": "../plugin.json",
   "type": "plugin",
   "enabled": true,

@@ -9,7 +9,7 @@
     {
       "name": "maestro",
       "version": "1.4.0",
-      "description": "Master orchestrator with Context-Driven Development, multi-project workspaces, git submodule support, and 100+ specialized sub-agents",
+      "description": "Master orchestrator with Context-Driven Development, multi-project workspaces, git submodule support, and 40+ specialized sub-agents",
       "license": "MIT",
       "repository": "https://github.com/wamoscode/maestro-plugin",
       "homepage": "https://github.com/wamoscode/maestro-plugin",
