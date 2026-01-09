@@ -35,19 +35,22 @@ Maestro acts as a master orchestrator—like a skilled conductor leading an orch
 For structured project management:
 
 ```bash
-# 1. Initialize your project
+# 1. Initialize your project (first time only)
 /maestro:setup
 
-# 2. Create a feature track
+# 2. Activate CDD mode (start of every session)
+/maestro:cdd
+
+# 3. Create a feature track
 /maestro:newTrack "Add user authentication with JWT"
 
-# 3. Check status
+# 4. Check status
 /maestro:status
 
-# 4. Implement the track
+# 5. Implement the track
 /maestro:implement
 
-# 5. Revert if needed
+# 6. Revert if needed
 /maestro:revert TRACK-001
 ```
 
@@ -65,6 +68,7 @@ For quick, untracked tasks:
 
 | Command | Description |
 |---------|-------------|
+| `/maestro:cdd` | **Activate CDD mode** - loads context and enables sub-agent orchestration |
 | `/maestro:setup` | Initialize project/workspace context |
 | `/maestro:newTrack` | Create a new feature, bug, or chore track |
 | `/maestro:status` | View project progress and track status |
@@ -104,6 +108,99 @@ Context → Specification & Planning → Implementation with Sub-Agents
 3. **Implement**: Execute plans with automatic sub-agent routing
 4. **Monitor**: Track progress with status and checkpoints
 5. **Iterate**: Revert cleanly if needed, re-implement with improvements
+
+### CDD Mode (`/maestro:cdd`)
+
+**Always start your session with `/maestro:cdd`** to activate Context-Driven Development mode. This command ensures Claude has full awareness of your project context and will leverage specialized sub-agents for every task.
+
+```bash
+/maestro:cdd
+```
+
+#### What CDD Mode Activates
+
+| Feature | Description |
+|---------|-------------|
+| **Context Loading** | Loads product.md, tech-stack.md, workflow.md, and all active tracks |
+| **Sub-Agent Orchestration** | Every task routes to appropriate specialist agents |
+| **Context Updates** | Discussions and decisions automatically update context files |
+| **Workflow Enforcement** | Follows your chosen methodology (TDD/Agile/Minimal) |
+| **Track Awareness** | Knows active tracks, current tasks, and progress |
+
+#### Sub-Agent Orchestration
+
+When CDD mode is active, **every task leverages specialized sub-agents**:
+
+**Single Agent Tasks** (simple, focused operations):
+```
+"Fix CSS bug"           → frontend-developer
+"Optimize SQL query"    → sql-pro
+"Add API endpoint"      → backend-developer
+```
+
+**Multi-Agent Teams** (complex, multi-domain tasks):
+```
+"Build user authentication" →
+  api-designer + backend-developer + security-auditor + qa-expert
+
+"Add payment processing" →
+  api-designer + backend-developer + security-auditor +
+  sql-pro + frontend-developer + qa-expert
+
+"Set up CI/CD pipeline" →
+  devops-engineer + security-auditor + deployment-engineer
+```
+
+#### Agent Selection Criteria
+
+Agents are selected based on:
+
+1. **Task Domain**: Frontend, backend, DevOps, security, data, etc.
+2. **Project Tech Stack**: Matches specialists to your technologies
+3. **Workflow Requirements**: TDD always includes qa-expert
+4. **Task Complexity**: Simple tasks get one agent, complex tasks get teams
+
+#### Automatic Context Updates
+
+After every significant discussion in CDD mode, context files are updated:
+
+| Decision Type | Updated File |
+|--------------|--------------|
+| New requirement | `spec.md` |
+| Technical approach | `plan.md`, `tech-stack.md` |
+| Guideline change | `product-guidelines.md` |
+| Task completion | `plan.md` (mark complete) |
+| Blocker encountered | `plan.md` (add note) |
+| Scope change | `spec.md`, `plan.md` |
+
+#### CDD Mode Output
+
+When activated, you'll see:
+
+```markdown
+## CDD Mode Activated
+
+### Project Context Loaded
+- **Product**: My Awesome App
+- **Tech Stack**: TypeScript, React, Node.js, PostgreSQL
+- **Workflow**: TDD
+- **Guidelines**: Security-first, 80% test coverage
+
+### Active Tracks
+| ID | Title | Status | Progress |
+|----|-------|--------|----------|
+| TRACK-001 | User Authentication | active | 60% |
+
+### Available Specialists (based on tech stack)
+| Domain | Primary Agents |
+|--------|----------------|
+| Frontend | frontend-developer, react-specialist |
+| Backend | backend-developer, api-designer |
+| Database | sql-pro, postgres-pro |
+| Quality | qa-expert, test-automator |
+
+Ready for CDD workflow. What would you like to work on?
+```
 
 ### Project Structure
 
@@ -402,15 +499,15 @@ Walks you through:
 | Category | Agents | Focus |
 |----------|--------|-------|
 | Core Development | 11 | Frontend, backend, API, full-stack |
-| Language Specialists | 22+ | TypeScript, Python, Go, Rust, Java, etc. |
-| Infrastructure | 12 | DevOps, Kubernetes, Terraform, Cloud |
-| Quality & Security | 12 | Testing, code review, security audits |
-| Data & AI | 12 | ML, data engineering, prompt engineering |
-| Developer Experience | 13 | Documentation, tooling, refactoring |
-| Specialized Domains | 12 | Blockchain, gaming, fintech, IoT |
-| Business & Product | 10 | Product management, technical writing |
-| Meta & Orchestration | 9 | Multi-agent coordination |
-| Research & Analysis | 6 | Research, competitive analysis |
+| Language Specialists | 11 | TypeScript, Python, Go, Rust, Java, etc. |
+| Infrastructure | 4 | DevOps, Kubernetes, Terraform, Cloud |
+| Quality & Security | 4 | Testing, code review, security audits |
+| Data & AI | 3 | ML, data engineering, prompt engineering |
+| Developer Experience | 2 | Documentation, refactoring |
+| Specialized Domains | 2 | Blockchain, gaming |
+| Business & Product | 2 | Product management, technical writing |
+| Meta & Orchestration | 2 | Multi-agent coordination |
+| Research & Analysis | 1 | Research analyst |
 
 ## Configuration
 
@@ -465,6 +562,7 @@ maestro-plugin/
 ├── commands/                # Slash commands
 │   ├── maestro.md          # Main orchestration (track-aware)
 │   ├── maestro/            # Context-driven commands
+│   │   ├── cdd.md          # CDD mode activation
 │   │   ├── setup.md        # Project initialization
 │   │   ├── newTrack.md     # Track creation
 │   │   ├── status.md       # Progress monitoring
@@ -488,7 +586,7 @@ maestro-plugin/
 │       ├── spec.md
 │       ├── plan.md
 │       └── metadata.json
-├── subagents/              # Agent definitions (117 agents)
+├── subagents/              # Agent definitions (42 agents)
 │   ├── maestro.md          # Main orchestrator
 │   ├── registry.json       # Agent registry
 │   └── [10 category folders]
