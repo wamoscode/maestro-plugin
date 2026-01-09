@@ -43,9 +43,34 @@ After every significant discussion or agreement:
 - New insights are captured in appropriate documents
 
 ### 4. Workflow Enforcement
+
 - Follows selected methodology (TDD/Agile/Minimal)
 - Respects code style guidelines
 - Maintains product alignment
+
+### 5. Sub-Agent Orchestration
+
+Every task in CDD mode leverages specialized sub-agents:
+
+- **Automatic Agent Selection**: Tasks are routed to the most qualified specialists
+- **Team Collaboration**: Complex tasks engage multiple agents working together
+- **Tech Stack Alignment**: Agents are matched to your project's technologies
+- **Domain Expertise**: Each agent brings deep knowledge in their specialty
+
+**Single Agent Tasks:**
+- Simple, focused operations (e.g., fix a typo, add a comment)
+- Domain-specific work (e.g., SQL optimization → sql-pro)
+
+**Multi-Agent Teams:**
+- Feature implementation (e.g., frontend-developer + backend-developer + qa-expert)
+- Architecture work (e.g., software-architect + api-designer + security-auditor)
+- Full-stack changes (e.g., fullstack-developer + typescript-pro + sql-pro)
+
+**Agent Selection Criteria:**
+1. Task domain (frontend, backend, devops, security, etc.)
+2. Project tech stack (from tech-stack.md)
+3. Workflow requirements (qa-expert for TDD)
+4. Task complexity and scope
 
 ## Output
 
@@ -69,10 +94,22 @@ When invoked, displays:
 [Most recent active task or phase]
 
 ### CDD Principles Active
+
 - All discussions will update relevant context
 - Track structure: spec.md -> plan.md -> implementation
 - Phase checkpoints before advancing
 - Context files reflect current decisions
+- **Sub-agents engaged for every task**
+
+### Available Specialists (based on tech stack)
+
+| Domain | Primary Agents |
+|--------|----------------|
+| Frontend | frontend-developer, react-specialist |
+| Backend | backend-developer, api-designer |
+| Database | sql-pro, postgres-pro |
+| Quality | qa-expert, test-automator |
+| Security | security-auditor |
 
 Ready for CDD workflow. What would you like to work on?
 ```
@@ -243,6 +280,106 @@ For the remainder of this session:
      - Capture in relevant context file
      - Link to track if applicable
      - Timestamp significant changes
+
+  5. Sub-agent orchestration (MANDATORY):
+     - EVERY task must route to appropriate sub-agents
+     - Select agents based on task analysis
+     - Use teams for complex/multi-domain tasks
+     - Leverage tech stack for specialist selection
+```
+
+### Step 7: Sub-Agent Routing Protocol
+
+```
+For EVERY task in CDD mode:
+
+1. ANALYZE the task:
+   - Identify domains: frontend, backend, devops, security, data, etc.
+   - Identify actions: create, modify, review, optimize, test, etc.
+   - Assess complexity: simple, moderate, complex, very_complex
+
+2. SELECT appropriate agents:
+
+   Simple tasks (single domain):
+     - Route to ONE specialist agent
+     - Examples:
+       * "Fix CSS bug" → frontend-developer
+       * "Optimize query" → sql-pro
+       * "Add API endpoint" → backend-developer
+
+   Moderate tasks (single domain, multiple concerns):
+     - Route to PRIMARY + SECONDARY agents
+     - Examples:
+       * "Add authenticated endpoint" → backend-developer + security-auditor
+       * "Create React component with tests" → frontend-developer + qa-expert
+
+   Complex tasks (multi-domain):
+     - Assemble AGENT TEAM
+     - Examples:
+       * "Build user management feature" →
+         api-designer + backend-developer + frontend-developer + qa-expert
+       * "Set up CI/CD pipeline" →
+         devops-engineer + security-auditor + deployment-engineer
+
+   Very complex tasks (architecture-level):
+     - Full specialist team with architect lead
+     - Examples:
+       * "Design microservices architecture" →
+         software-architect + microservices-architect + api-designer +
+         devops-engineer + security-auditor
+
+3. MATCH to tech stack:
+   - Read tech-stack.md for project technologies
+   - Add language specialists:
+     * TypeScript project → typescript-pro
+     * Python/Django → python-pro, django-developer
+     * React frontend → react-specialist
+     * PostgreSQL → postgres-pro
+   - Add framework specialists as needed
+
+4. APPLY workflow requirements:
+   - TDD workflow → ALWAYS include qa-expert
+   - Security-sensitive → ALWAYS include security-auditor
+   - Database changes → ALWAYS include sql-pro or database specialist
+
+5. EXECUTE with coordination:
+   - Independent tasks → parallel execution
+   - Dependent tasks → sequential execution
+   - Synthesize results from all agents
+   - Resolve conflicts between agent outputs
+```
+
+### Sub-Agent Team Examples
+
+```
+Feature: "Add payment processing"
+Team:
+  - api-designer (design endpoints)
+  - backend-developer (implement logic)
+  - security-auditor (review security)
+  - sql-pro (database schema)
+  - qa-expert (test coverage)
+  - frontend-developer (payment UI)
+
+Feature: "Optimize application performance"
+Team:
+  - performance-engineer (profiling, bottlenecks)
+  - sql-pro (query optimization)
+  - frontend-developer (bundle optimization)
+  - devops-engineer (infrastructure tuning)
+
+Feature: "Security audit and hardening"
+Team:
+  - security-auditor (vulnerability assessment)
+  - penetration-tester (attack simulation)
+  - backend-developer (fix implementation)
+  - devops-engineer (infrastructure security)
+
+Bug: "Fix authentication issue"
+Team:
+  - backend-developer (debug and fix)
+  - security-auditor (verify fix is secure)
+  - qa-expert (regression tests)
 ```
 
 ### Context Update Triggers
