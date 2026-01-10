@@ -450,7 +450,7 @@ Best for local development—changes are reflected immediately without reinstall
 
 ```bash
 # Clone the repository
-git clone https://github.com/maestro-plugin/maestro.git ~/Projects/maestro-plugin
+git clone https://github.com/wamoscode/maestro-plugin.git ~/Projects/maestro-plugin
 
 # Create symlink to plugins directory
 # macOS:
@@ -466,7 +466,7 @@ Automated installation with dependency setup and configuration.
 
 ```bash
 # Clone the repository
-git clone https://github.com/maestro-plugin/maestro.git
+git clone https://github.com/wamoscode/maestro-plugin.git
 
 # Navigate to the plugin directory
 cd maestro
@@ -488,7 +488,7 @@ Simple copy to the plugins directory.
 
 ```bash
 # Clone the repository
-git clone https://github.com/maestro-plugin/maestro.git
+git clone https://github.com/wamoscode/maestro-plugin.git
 
 # Copy to plugins directory
 # macOS:
