@@ -14,8 +14,8 @@ NC='\033[0m' # No Color
 
 # Plugin info
 PLUGIN_NAME="maestro"
-PLUGIN_VERSION="1.0.0"
-GITHUB_REPO="https://github.com/maestro-plugin/maestro"
+PLUGIN_VERSION="1.6.0"
+GITHUB_REPO="https://github.com/wamoscode/maestro-plugin"
 
 echo -e "${BLUE}╔════════════════════════════════════════════╗${NC}"
 echo -e "${BLUE}║     Maestro Plugin Installation Script     ║${NC}"
