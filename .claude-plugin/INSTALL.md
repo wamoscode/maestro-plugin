@@ -11,14 +11,14 @@
 
 ### macOS
 ```bash
-git clone https://github.com/maestro-plugin/maestro.git ~/.claude/plugins/maestro
+git clone https://github.com/wamoscode/maestro-plugin.git ~/.claude/plugins/maestro
 cd ~/.claude/plugins/maestro
 ./scripts/install.sh
 ```
 
 ### Linux
 ```bash
-git clone https://github.com/maestro-plugin/maestro.git ~/.config/claude-code/plugins/maestro
+git clone https://github.com/wamoscode/maestro-plugin.git ~/.config/claude-code/plugins/maestro
 cd ~/.config/claude-code/plugins/maestro
 ./scripts/install.sh
 ```

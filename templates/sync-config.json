@@ -1,0 +1,346 @@
+{
+  "$schema": "./sync-config.schema.json",
+  "version": "1.0.0",
+  "description": "CDD Platform Sync Configuration",
+
+  "sync": {
+    "enabled": true,
+    "mode": "bidirectional",
+    "conflictResolution": "cdd_wins",
+    "autoSync": false,
+    "syncOnCreate": true,
+    "syncOnUpdate": true,
+    "syncOnComplete": true
+  },
+
+  "platforms": {
+    "clickup": {
+      "enabled": false,
+      "connection": {
+        "type": "api",
+        "apiKey": "${CLICKUP_API_KEY}",
+        "workspaceId": "${CLICKUP_WORKSPACE_ID}"
+      },
+      "mapping": {
+        "projectId": "",
+        "listId": "",
+        "statusMapping": {
+          "planning": "to do",
+          "in-progress": "in progress",
+          "review": "review",
+          "completed": "complete",
+          "blocked": "blocked",
+          "stashed": "on hold"
+        },
+        "priorityMapping": {
+          "critical": 1,
+          "high": 2,
+          "medium": 3,
+          "low": 4
+        },
+        "typeMapping": {
+          "feature": "Feature",
+          "bug": "Bug",
+          "chore": "Task",
+          "refactor": "Improvement"
+        },
+        "customFields": {
+          "trackId": "",
+          "phase": ""
+        }
+      }
+    },
+
+    "linear": {
+      "enabled": false,
+      "connection": {
+        "type": "api",
+        "apiKey": "${LINEAR_API_KEY}"
+      },
+      "mapping": {
+        "teamId": "",
+        "projectId": "",
+        "cycleId": "",
+        "stateMapping": {
+          "planning": "",
+          "in-progress": "",
+          "review": "",
+          "completed": "",
+          "blocked": "",
+          "stashed": ""
+        },
+        "labelMapping": {
+          "cdd": "",
+          "types": {
+            "feature": "",
+            "bug": "",
+            "chore": "",
+            "refactor": ""
+          }
+        },
+        "priorityMapping": {
+          "critical": 1,
+          "high": 2,
+          "medium": 3,
+          "low": 4
+        }
+      }
+    },
+
+    "asana": {
+      "enabled": false,
+      "connection": {
+        "type": "api",
+        "accessToken": "${ASANA_ACCESS_TOKEN}"
+      },
+      "mapping": {
+        "workspaceId": "",
+        "projectId": "",
+        "sectionMapping": {
+          "planning": "",
+          "in-progress": "",
+          "review": "",
+          "completed": "",
+          "blocked": "",
+          "stashed": ""
+        },
+        "tagMapping": {
+          "cdd": "",
+          "types": {
+            "feature": "",
+            "bug": "",
+            "chore": "",
+            "refactor": ""
+          },
+          "priorities": {
+            "critical": "",
+            "high": "",
+            "medium": "",
+            "low": ""
+          }
+        },
+        "customFields": {
+          "trackId": "",
+          "trackType": "",
+          "progress": ""
+        }
+      }
+    },
+
+    "jira": {
+      "enabled": false,
+      "connection": {
+        "type": "api",
+        "host": "${JIRA_HOST}",
+        "email": "${JIRA_EMAIL}",
+        "apiToken": "${JIRA_API_TOKEN}"
+      },
+      "mapping": {
+        "projectKey": "",
+        "issueTypeMapping": {
+          "feature": "Story",
+          "bug": "Bug",
+          "chore": "Task",
+          "refactor": "Task"
+        },
+        "statusMapping": {
+          "planning": "To Do",
+          "in-progress": "In Progress",
+          "review": "In Review",
+          "completed": "Done",
+          "blocked": "Blocked",
+          "stashed": "On Hold"
+        },
+        "priorityMapping": {
+          "critical": "Highest",
+          "high": "High",
+          "medium": "Medium",
+          "low": "Low"
+        },
+        "customFields": {
+          "trackId": "",
+          "phase": ""
+        },
+        "epicLinkField": "",
+        "sprintField": "",
+        "currentSprint": ""
+      }
+    },
+
+    "todoist": {
+      "enabled": false,
+      "connection": {
+        "type": "api",
+        "apiToken": "${TODOIST_API_TOKEN}"
+      },
+      "mapping": {
+        "projectId": "",
+        "sectionMapping": {
+          "planning": "",
+          "in-progress": "",
+          "review": "",
+          "completed": "",
+          "blocked": "",
+          "stashed": ""
+        },
+        "labelMapping": {
+          "types": {
+            "feature": "feature",
+            "bug": "bug",
+            "chore": "chore",
+            "refactor": "refactor"
+          }
+        },
+        "priorityMapping": {
+          "critical": 4,
+          "high": 3,
+          "medium": 2,
+          "low": 1
+        }
+      }
+    },
+
+    "youtrack": {
+      "enabled": false,
+      "connection": {
+        "type": "api",
+        "host": "${YOUTRACK_HOST}",
+        "token": "${YOUTRACK_TOKEN}"
+      },
+      "mapping": {
+        "projectId": "",
+        "customFields": {
+          "priority": "Priority",
+          "type": "Type",
+          "state": "State",
+          "trackId": ""
+        },
+        "priorityMapping": {
+          "critical": "Critical",
+          "high": "Major",
+          "medium": "Normal",
+          "low": "Minor"
+        },
+        "typeMapping": {
+          "feature": "Feature",
+          "bug": "Bug",
+          "chore": "Task",
+          "refactor": "Task"
+        },
+        "stateMapping": {
+          "planning": "Open",
+          "in-progress": "In Progress",
+          "review": "To be discussed",
+          "completed": "Fixed",
+          "blocked": "Wait for reply",
+          "stashed": "Postponed"
+        }
+      }
+    },
+
+    "notion": {
+      "enabled": false,
+      "connection": {
+        "type": "mcp",
+        "mcp": {
+          "server": "notion-mcp-server",
+          "toolPrefix": "notion"
+        }
+      },
+      "mapping": {
+        "databaseId": "",
+        "propertyMapping": {
+          "title": "Name",
+          "status": "Status",
+          "priority": "Priority",
+          "type": "Type",
+          "trackId": "CDD Track ID"
+        },
+        "statusMapping": {
+          "planning": "Not Started",
+          "in-progress": "In Progress",
+          "review": "In Review",
+          "completed": "Done",
+          "blocked": "Blocked",
+          "stashed": "On Hold"
+        }
+      }
+    },
+
+    "github": {
+      "enabled": false,
+      "connection": {
+        "type": "mcp",
+        "mcp": {
+          "server": "github-mcp-server",
+          "toolPrefix": "github"
+        }
+      },
+      "mapping": {
+        "owner": "",
+        "repo": "",
+        "labelMapping": {
+          "cdd": "cdd",
+          "types": {
+            "feature": "enhancement",
+            "bug": "bug",
+            "chore": "chore",
+            "refactor": "refactor"
+          },
+          "priorities": {
+            "critical": "priority: critical",
+            "high": "priority: high",
+            "medium": "priority: medium",
+            "low": "priority: low"
+          }
+        },
+        "milestoneMapping": {},
+        "projectMapping": {
+          "projectNumber": "",
+          "statusFieldId": "",
+          "statusMapping": {
+            "planning": "",
+            "in-progress": "",
+            "review": "",
+            "completed": "",
+            "blocked": "",
+            "stashed": ""
+          }
+        }
+      }
+    }
+  },
+
+  "mcp": {
+    "servers": {
+      "notion-mcp-server": {
+        "command": "npx",
+        "args": ["-y", "@notionhq/notion-mcp-server"],
+        "env": {
+          "NOTION_API_KEY": "${NOTION_API_KEY}"
+        }
+      },
+      "github-mcp-server": {
+        "command": "npx",
+        "args": ["-y", "@anthropic/github-mcp-server"],
+        "env": {
+          "GITHUB_TOKEN": "${GITHUB_TOKEN}"
+        }
+      }
+    }
+  },
+
+  "filters": {
+    "syncTypes": ["feature", "bug", "chore", "refactor"],
+    "excludeStatuses": [],
+    "excludeTags": ["private", "internal"],
+    "includeArchived": false
+  },
+
+  "hooks": {
+    "beforeSync": null,
+    "afterSync": null,
+    "onConflict": null,
+    "onError": null
+  }
+}

@@ -1,7 +1,7 @@
 {
   "name": "maestro",
-  "version": "1.4.0",
-  "description": "Master orchestrator plugin with Context-Driven Development methodology, multi-project workspaces, git submodule support, and 40+ specialized sub-agents for intelligent task routing",
+  "version": "1.6.0",
+  "description": "Master orchestrator plugin with Context-Driven Development methodology, multi-project workspaces, platform sync, git submodule support, 40+ specialized sub-agents, context versioning, quality gates, and intelligent project management",
   "main": "mcp/server.js",
   "author": {
     "name": "Maestro Team",
@@ -32,7 +32,14 @@
     "workspace",
     "git-submodules",
     "cross-project",
-    "mcp"
+    "mcp",
+    "platform-sync",
+    "jira",
+    "linear",
+    "asana",
+    "clickup",
+    "todoist",
+    "youtrack"
   ],
   "engines": {
     "claude-code": ">=1.0.0"
@@ -47,6 +54,11 @@
     "maestro:revert",
     "maestro:workspace",
     "maestro:projects",
+    "maestro:dashboard",
+    "maestro:impact",
+    "maestro:stash",
+    "maestro:quick",
+    "maestro:sync",
     "workflow",
     "parallel-execute",
     "list-subagents",
@@ -54,10 +66,23 @@
   ],
   "features": {
     "contextDrivenDevelopment": true,
+    "contextVersioning": true,
     "multiProjectWorkspaces": true,
     "gitSubmoduleSupport": true,
     "crossProjectTracks": true,
-    "workflowTemplates": ["tdd", "agile", "minimal"],
+    "crossProjectIntelligence": true,
+    "trackHierarchy": true,
+    "trackArchetypes": true,
+    "customWorkflows": true,
+    "qualityGates": true,
+    "impactAnalysis": true,
+    "agentPerformanceTracking": true,
+    "knowledgeCapture": true,
+    "trackStashing": true,
+    "platformSync": true,
+    "supportedPlatforms": ["clickup", "linear", "asana", "jira", "todoist", "youtrack", "notion", "github"],
+    "mcpSync": true,
+    "workflowTemplates": ["tdd", "agile", "minimal", "custom"],
     "subagentCount": 42
   },
   "directories": {

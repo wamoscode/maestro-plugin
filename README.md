@@ -1,16 +1,18 @@
 # Maestro Plugin for Claude Code
 
-A comprehensive orchestration plugin that bundles 40+ specialized sub-agents for intelligent task routing and multi-agent collaboration in Claude Code. Now with **Context-Driven Development** methodology for structured project management.
+A comprehensive orchestration plugin that bundles 40+ specialized sub-agents for intelligent task routing and multi-agent collaboration in Claude Code. Now with **Context-Driven Development** methodology and **Platform Sync** for external project management integration.
 
 ## Overview
 
 Maestro acts as a master orchestrator—like a skilled conductor leading an orchestra—analyzing user tasks, determining the optimal sub-agent(s) to invoke, coordinating their execution (parallel or sequential), and synthesizing their results into cohesive deliverables.
 
-**New in v1.4**: CDD mode activation command (`/maestro:cdd`) with mandatory sub-agent orchestration for all tasks.
+**New in v1.6**: Platform Sync for bidirectional synchronization with ClickUp, Linear, Jira, Asana, Todoist, YouTrack, and more via API or MCP.
+
+**v1.5**: Enhanced CDD with context versioning, quality gates, impact analysis, track archetypes, and knowledge capture.
+
+**v1.4**: CDD mode activation command (`/maestro:cdd`) with mandatory sub-agent orchestration for all tasks.
 
 **v1.3**: Multi-project workspace support with git submodule handling, cross-project tracks, and coordinated commits across repositories.
-
-**v1.2**: Context-Driven Development brings structured project management with tracks, specifications, and implementation plans—inspired by [Conductor](https://github.com/gemini-cli-extensions/conductor).
 
 ## Features
 
@@ -19,10 +21,14 @@ Maestro acts as a master orchestrator—like a skilled conductor leading an orch
 - **Parallel Execution**: Run independent agents simultaneously for faster results
 - **Workflow Orchestration**: Define complex multi-step workflows with dependencies
 - **Context-Driven Development**: Structured tracks with specs, plans, and checkpoints
+- **Platform Sync**: Bidirectional sync with ClickUp, Linear, Jira, Asana, Todoist, YouTrack
 - **Multi-Project Workspaces**: Manage multiple repositories as a unified workspace
 - **Git Submodule Support**: First-class handling of submodules with parent reference tracking
 - **Cross-Project Tracks**: Features spanning multiple repositories with coordinated commits
 - **Track Management**: Create, implement, and revert feature/bug tracks
+- **Quality Gates**: Automated checkpoints and CI/CD integration
+- **Impact Analysis**: Blast radius calculation and risk assessment
+- **Track Archetypes**: Pre-built templates for common patterns (API, auth, migrations)
 - **Workflow Templates**: TDD, Agile, and Minimal methodologies
 - **Code Style Guides**: TypeScript, Python, Go, and Rust templates
 - **Git Integration**: Commit tracking and git-aware revert functionality
@@ -74,6 +80,11 @@ For quick, untracked tasks:
 | `/maestro:status` | View project progress and track status |
 | `/maestro:implement` | Execute track implementation with sub-agents |
 | `/maestro:revert` | Git-aware rollback of tracks or tasks |
+| `/maestro:sync` | Sync tracks with external platforms |
+| `/maestro:dashboard` | Rich terminal dashboard with progress visualization |
+| `/maestro:impact` | Analyze change impact and blast radius |
+| `/maestro:stash` | Pause/resume tracks without reverting |
+| `/maestro:quick` | Fast shortcuts for common CDD actions |
 
 ### Multi-Project Commands
 
@@ -305,6 +316,130 @@ Features spanning multiple repositories:
 /maestro:revert CROSS-001 --include-submodules
 ```
 
+## Platform Sync
+
+Synchronize CDD tracks with external project management platforms. Supports both direct API and MCP-based connections.
+
+### Supported Platforms
+
+| Platform | Connection Types | Features |
+|----------|-----------------|----------|
+| **ClickUp** | API | Tasks, lists, custom fields, priorities |
+| **Linear** | API | Issues, projects, cycles, labels |
+| **Jira** | API | Issues, epics, sprints, custom fields |
+| **Asana** | API | Tasks, projects, sections, tags |
+| **Todoist** | API | Tasks, projects, labels, priorities |
+| **YouTrack** | API | Issues, tags, custom fields |
+| **Notion** | MCP | Database pages, properties |
+| **GitHub** | MCP | Issues, projects, milestones |
+
+### Quick Start
+
+```bash
+# Initialize sync configuration
+/maestro:sync config --init
+
+# Test platform connections
+/maestro:sync test
+
+# Push all tracks to configured platforms
+/maestro:sync push
+
+# Pull items from external platforms
+/maestro:sync pull --platform=linear
+
+# Link existing track to external item
+/maestro:sync link TRACK-001 jira:PROJ-123
+```
+
+### Configuration
+
+Create `.cdd/sync-config.json` in your project (or use `/maestro:sync config --init`):
+
+```json
+{
+  "sync": {
+    "enabled": true,
+    "mode": "bidirectional",
+    "conflictResolution": "cdd_wins"
+  },
+  "platforms": {
+    "linear": {
+      "enabled": true,
+      "connection": {
+        "type": "api",
+        "apiKey": "${LINEAR_API_KEY}"
+      },
+      "mapping": {
+        "teamId": "your-team-id"
+      }
+    }
+  }
+}
+```
+
+### Connection Types
+
+**Direct API**: Configure with API keys and tokens
+```json
+{
+  "connection": {
+    "type": "api",
+    "apiKey": "${LINEAR_API_KEY}"
+  }
+}
+```
+
+**MCP-Based**: Use existing MCP servers
+```json
+{
+  "connection": {
+    "type": "mcp",
+    "mcp": {
+      "server": "notion-mcp-server",
+      "toolPrefix": "notion"
+    }
+  }
+}
+```
+
+### Sync Commands
+
+| Command | Description |
+|---------|-------------|
+| `/maestro:sync status` | Show sync status for all platforms |
+| `/maestro:sync push` | Push CDD tracks to external platforms |
+| `/maestro:sync pull` | Pull items from external platforms |
+| `/maestro:sync full` | Bidirectional sync |
+| `/maestro:sync test` | Test platform connections |
+| `/maestro:sync link` | Link track to external item |
+| `/maestro:sync config` | Configure sync settings |
+
+### Environment Variables
+
+```bash
+# ClickUp
+export CLICKUP_API_KEY="your-api-key"
+
+# Linear
+export LINEAR_API_KEY="your-api-key"
+
+# Jira
+export JIRA_HOST="https://your-org.atlassian.net"
+export JIRA_EMAIL="your-email@example.com"
+export JIRA_API_TOKEN="your-api-token"
+
+# Asana
+export ASANA_ACCESS_TOKEN="your-token"
+
+# Todoist
+export TODOIST_API_TOKEN="your-token"
+
+# YouTrack
+export YOUTRACK_HOST="https://your-org.youtrack.cloud"
+export YOUTRACK_TOKEN="your-token"
+```
+
 ## Installation
 
 Choose the installation method that best fits your needs:
@@ -315,7 +450,7 @@ Best for local development—changes are reflected immediately without reinstall
 
 ```bash
 # Clone the repository
-git clone https://github.com/maestro-plugin/maestro.git ~/Projects/maestro-plugin
+git clone https://github.com/wamoscode/maestro-plugin.git ~/Projects/maestro-plugin
 
 # Create symlink to plugins directory
 # macOS:
@@ -331,7 +466,7 @@ Automated installation with dependency setup and configuration.
 
 ```bash
 # Clone the repository
-git clone https://github.com/maestro-plugin/maestro.git
+git clone https://github.com/wamoscode/maestro-plugin.git
 
 # Navigate to the plugin directory
 cd maestro
@@ -353,7 +488,7 @@ Simple copy to the plugins directory.
 
 ```bash
 # Clone the repository
-git clone https://github.com/maestro-plugin/maestro.git
+git clone https://github.com/wamoscode/maestro-plugin.git
 
 # Copy to plugins directory
 # macOS:
@@ -547,12 +682,21 @@ The plugin includes an MCP server for advanced integrations:
 
 ### MCP Tools
 
+**Agent Tools:**
 - `list_agents` - List available sub-agents
 - `get_agent_info` - Get agent details
 - `analyze_task` - Analyze a task and get routing recommendations
 - `execute_workflow` - Execute a defined workflow
 - `get_execution_status` - Check execution status
 - `get_metrics` - Get execution metrics
+
+**Sync Tools:**
+- `sync_status` - Get synchronization status for all platforms
+- `sync_push` - Push CDD tracks to external platforms
+- `sync_pull` - Pull items from external platforms
+- `sync_link` - Link a CDD track to an external item
+- `sync_test` - Test platform connections
+- `sync_config` - Get or update sync configuration
 
 ## Directory Structure
 
@@ -567,7 +711,12 @@ maestro-plugin/
 │   │   ├── newTrack.md     # Track creation
 │   │   ├── status.md       # Progress monitoring
 │   │   ├── implement.md    # Track implementation
-│   │   └── revert.md       # Git-aware rollback
+│   │   ├── revert.md       # Git-aware rollback
+│   │   ├── sync.md         # Platform synchronization
+│   │   ├── dashboard.md    # Progress dashboard
+│   │   ├── impact.md       # Impact analysis
+│   │   ├── stash.md        # Track stashing
+│   │   └── quick.md        # Quick actions
 │   ├── workflow.md         # Workflow orchestration
 │   ├── list-subagents.md   # Agent browser
 │   ├── agent-info.md       # Agent details
@@ -576,7 +725,12 @@ maestro-plugin/
 │   ├── workflow-tdd.md     # TDD methodology
 │   ├── workflow-agile.md   # Agile methodology
 │   ├── workflow-minimal.md # Minimal tracking
+│   ├── sync-config.json    # Platform sync configuration
 │   ├── tracks.md           # Track index template
+│   ├── archetypes/         # Track archetypes
+│   │   ├── api-endpoint.md
+│   │   ├── auth-feature.md
+│   │   └── database-migration.md
 │   ├── code_styleguides/   # Language style guides
 │   │   ├── typescript.md
 │   │   ├── python.md
@@ -592,6 +746,13 @@ maestro-plugin/
 │   └── [10 category folders]
 ├── hooks/                  # Execution hooks
 ├── skills/                 # Specialized skills
+│   ├── platform-sync/      # Platform sync adapters
+│   │   ├── sync-engine.js
+│   │   └── adapters/       # Platform-specific adapters
+│   ├── context-versioning.js
+│   ├── quality-gates.js
+│   ├── impact-analysis.js
+│   └── knowledge-capture.js
 ├── scripts/                # Automation scripts
 └── mcp/                    # MCP server
 ```

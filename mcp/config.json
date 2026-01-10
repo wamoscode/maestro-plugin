@@ -1,6 +1,6 @@
 {
   "name": "maestro-mcp",
-  "version": "1.0.0",
+  "version": "1.6.0",
   "description": "MCP server for Maestro plugin - provides advanced orchestration capabilities",
   "server": {
     "type": "stdio",
@@ -106,6 +106,118 @@
           }
         }
       }
+    },
+    {
+      "name": "sync_status",
+      "description": "Get synchronization status for all configured platforms",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "platform": {
+            "type": "string",
+            "description": "Filter by platform (optional)"
+          }
+        }
+      }
+    },
+    {
+      "name": "sync_push",
+      "description": "Push CDD tracks to external platforms",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "platform": {
+            "type": "string",
+            "description": "Target platform (clickup, linear, jira, asana, todoist, youtrack, notion, github)"
+          },
+          "trackId": {
+            "type": "string",
+            "description": "Specific track ID to push (optional, pushes all if omitted)"
+          },
+          "force": {
+            "type": "boolean",
+            "description": "Force push even with conflicts"
+          },
+          "dryRun": {
+            "type": "boolean",
+            "description": "Preview changes without applying"
+          }
+        }
+      }
+    },
+    {
+      "name": "sync_pull",
+      "description": "Pull items from external platforms to CDD",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "platform": {
+            "type": "string",
+            "description": "Source platform to pull from"
+          },
+          "force": {
+            "type": "boolean",
+            "description": "Force pull even with conflicts"
+          },
+          "dryRun": {
+            "type": "boolean",
+            "description": "Preview changes without applying"
+          }
+        }
+      }
+    },
+    {
+      "name": "sync_link",
+      "description": "Link a CDD track to an external platform item",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "trackId": {
+            "type": "string",
+            "description": "The CDD track ID"
+          },
+          "platform": {
+            "type": "string",
+            "description": "The external platform"
+          },
+          "externalId": {
+            "type": "string",
+            "description": "The external item ID"
+          }
+        },
+        "required": ["trackId", "platform", "externalId"]
+      }
+    },
+    {
+      "name": "sync_test",
+      "description": "Test connection to external platforms",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "platform": {
+            "type": "string",
+            "description": "Platform to test (optional, tests all if omitted)"
+          }
+        }
+      }
+    },
+    {
+      "name": "sync_config",
+      "description": "Get or update sync configuration",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": ["get", "init", "validate"],
+            "description": "Action to perform"
+          },
+          "platform": {
+            "type": "string",
+            "description": "Platform to configure (optional)"
+          }
+        }
+      }
     }
   ],
   "resources": [
@@ -125,6 +237,24 @@
       "uri": "maestro://logs/{executionId}",
       "name": "Execution Logs",
       "description": "Logs for a specific execution",
+      "mimeType": "application/json"
+    },
+    {
+      "uri": "maestro://sync/config",
+      "name": "Sync Configuration",
+      "description": "Platform synchronization configuration",
+      "mimeType": "application/json"
+    },
+    {
+      "uri": "maestro://sync/status",
+      "name": "Sync Status",
+      "description": "Current synchronization status for all platforms",
+      "mimeType": "application/json"
+    },
+    {
+      "uri": "maestro://sync/links",
+      "name": "Sync Links",
+      "description": "Mappings between CDD tracks and external platform items",
       "mimeType": "application/json"
     }
   ],
