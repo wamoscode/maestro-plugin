@@ -16,6 +16,15 @@ const AgentRouter = require('../hooks/agent-router');
 const TaskAnalyzer = require('../skills/task-analyzer');
 const ResultAggregator = require('../skills/result-aggregator');
 
+// Import sync components
+let SyncEngine;
+try {
+  SyncEngine = require('../skills/platform-sync/sync-engine');
+} catch (e) {
+  // Sync engine not available
+  SyncEngine = null;
+}
+
 class MaestroMCPServer {
   constructor() {
     this.config = this.loadConfig();
@@ -25,6 +34,33 @@ class MaestroMCPServer {
 
     this.executions = new Map();
     this.workflows = new Map();
+
+    // Initialize sync engine if available
+    this.syncEngine = null;
+    this.initializeSyncEngine();
+  }
+
+  /**
+   * Initialize the sync engine
+   */
+  async initializeSyncEngine() {
+    if (!SyncEngine) {
+      return;
+    }
+
+    try {
+      const projectRoot = process.cwd();
+      this.syncEngine = new SyncEngine(projectRoot);
+
+      // Try to load sync config
+      const syncConfigPath = path.join(projectRoot, '.cdd', 'sync-config.json');
+      if (fs.existsSync(syncConfigPath)) {
+        const syncConfig = JSON.parse(fs.readFileSync(syncConfigPath, 'utf8'));
+        await this.syncEngine.initialize(syncConfig);
+      }
+    } catch (error) {
+      console.error('Failed to initialize sync engine:', error.message);
+    }
   }
 
   /**
@@ -185,6 +221,24 @@ class MaestroMCPServer {
 
       case 'get_metrics':
         return this.toolGetMetrics(args);
+
+      case 'sync_status':
+        return await this.toolSyncStatus(args);
+
+      case 'sync_push':
+        return await this.toolSyncPush(args);
+
+      case 'sync_pull':
+        return await this.toolSyncPull(args);
+
+      case 'sync_link':
+        return await this.toolSyncLink(args);
+
+      case 'sync_test':
+        return await this.toolSyncTest(args);
+
+      case 'sync_config':
+        return await this.toolSyncConfig(args);
 
       default:
         throw new Error(`Unknown tool: ${name}`);
@@ -385,6 +439,347 @@ class MaestroMCPServer {
   }
 
   /**
+   * Tool: Get sync status
+   */
+  async toolSyncStatus(args) {
+    if (!this.syncEngine) {
+      return this.syncNotAvailable();
+    }
+
+    try {
+      const status = await this.syncEngine.getSyncStatus();
+
+      if (args.platform) {
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify({
+              platform: args.platform,
+              status: status.platforms[args.platform] || { enabled: false }
+            }, null, 2)
+          }]
+        };
+      }
+
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify(status, null, 2)
+        }]
+      };
+    } catch (error) {
+      throw new Error(`Failed to get sync status: ${error.message}`);
+    }
+  }
+
+  /**
+   * Tool: Push to external platforms
+   */
+  async toolSyncPush(args) {
+    if (!this.syncEngine) {
+      return this.syncNotAvailable();
+    }
+
+    try {
+      const { platform, trackId, force, dryRun } = args;
+      const results = [];
+
+      const platforms = platform
+        ? [platform]
+        : this.syncEngine.getEnabledPlatforms();
+
+      for (const plat of platforms) {
+        if (trackId) {
+          const result = await this.syncEngine.pushTrack(plat, trackId, { force, dryRun });
+          results.push({ platform: plat, trackId, ...result });
+        } else {
+          const tracks = await this.syncEngine.getAllTracks();
+          for (const track of tracks) {
+            const result = await this.syncEngine.pushTrack(plat, track.id, { force, dryRun });
+            results.push({ platform: plat, trackId: track.id, ...result });
+          }
+        }
+      }
+
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            action: 'push',
+            dryRun: dryRun || false,
+            results
+          }, null, 2)
+        }]
+      };
+    } catch (error) {
+      throw new Error(`Sync push failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Tool: Pull from external platforms
+   */
+  async toolSyncPull(args) {
+    if (!this.syncEngine) {
+      return this.syncNotAvailable();
+    }
+
+    try {
+      const { platform, force, dryRun } = args;
+      const results = [];
+
+      const platforms = platform
+        ? [platform]
+        : this.syncEngine.getEnabledPlatforms();
+
+      for (const plat of platforms) {
+        const items = await this.syncEngine.pullItems(plat);
+
+        for (const item of items) {
+          if (!dryRun) {
+            const result = await this.syncEngine.importItem(plat, item, { force });
+            results.push({ platform: plat, externalId: item.id, ...result });
+          } else {
+            results.push({
+              platform: plat,
+              externalId: item.id,
+              name: item.name,
+              action: 'would_import'
+            });
+          }
+        }
+      }
+
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            action: 'pull',
+            dryRun: dryRun || false,
+            results
+          }, null, 2)
+        }]
+      };
+    } catch (error) {
+      throw new Error(`Sync pull failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Tool: Link track to external item
+   */
+  async toolSyncLink(args) {
+    if (!this.syncEngine) {
+      return this.syncNotAvailable();
+    }
+
+    try {
+      const { trackId, platform, externalId } = args;
+
+      await this.syncEngine.linkTrack(trackId, platform, externalId);
+
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            success: true,
+            trackId,
+            platform,
+            externalId,
+            message: `Track ${trackId} linked to ${platform}:${externalId}`
+          }, null, 2)
+        }]
+      };
+    } catch (error) {
+      throw new Error(`Failed to link track: ${error.message}`);
+    }
+  }
+
+  /**
+   * Tool: Test platform connections
+   */
+  async toolSyncTest(args) {
+    if (!this.syncEngine) {
+      return this.syncNotAvailable();
+    }
+
+    try {
+      const results = [];
+      const platforms = args.platform
+        ? [args.platform]
+        : this.syncEngine.getEnabledPlatforms();
+
+      for (const platform of platforms) {
+        const result = await this.syncEngine.testConnection(platform);
+        results.push({
+          platform,
+          connected: result.success,
+          user: result.user,
+          error: result.error
+        });
+      }
+
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            action: 'test',
+            results
+          }, null, 2)
+        }]
+      };
+    } catch (error) {
+      throw new Error(`Connection test failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Tool: Get or update sync configuration
+   */
+  async toolSyncConfig(args) {
+    const { action = 'get', platform } = args;
+    const projectRoot = process.cwd();
+    const configPath = path.join(projectRoot, '.cdd', 'sync-config.json');
+    const templatePath = path.join(__dirname, '../templates/sync-config.json');
+
+    try {
+      switch (action) {
+        case 'init':
+          // Copy template to project
+          const cddDir = path.join(projectRoot, '.cdd');
+          if (!fs.existsSync(cddDir)) {
+            fs.mkdirSync(cddDir, { recursive: true });
+          }
+          fs.copyFileSync(templatePath, configPath);
+
+          return {
+            content: [{
+              type: 'text',
+              text: JSON.stringify({
+                success: true,
+                message: 'Sync configuration initialized',
+                path: configPath
+              }, null, 2)
+            }]
+          };
+
+        case 'validate':
+          if (!fs.existsSync(configPath)) {
+            throw new Error('Sync configuration not found. Run with action=init first.');
+          }
+
+          const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+          const validation = this.validateSyncConfig(config);
+
+          return {
+            content: [{
+              type: 'text',
+              text: JSON.stringify({
+                valid: validation.valid,
+                errors: validation.errors,
+                warnings: validation.warnings
+              }, null, 2)
+            }]
+          };
+
+        case 'get':
+        default:
+          if (!fs.existsSync(configPath)) {
+            return {
+              content: [{
+                type: 'text',
+                text: JSON.stringify({
+                  configured: false,
+                  message: 'Sync not configured. Use action=init to create configuration.'
+                }, null, 2)
+              }]
+            };
+          }
+
+          const currentConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+
+          if (platform) {
+            return {
+              content: [{
+                type: 'text',
+                text: JSON.stringify({
+                  platform,
+                  config: currentConfig.platforms[platform] || null
+                }, null, 2)
+              }]
+            };
+          }
+
+          return {
+            content: [{
+              type: 'text',
+              text: JSON.stringify({
+                configured: true,
+                sync: currentConfig.sync,
+                enabledPlatforms: Object.entries(currentConfig.platforms)
+                  .filter(([_, p]) => p.enabled)
+                  .map(([name]) => name)
+              }, null, 2)
+            }]
+          };
+      }
+    } catch (error) {
+      throw new Error(`Sync config error: ${error.message}`);
+    }
+  }
+
+  /**
+   * Validate sync configuration
+   */
+  validateSyncConfig(config) {
+    const errors = [];
+    const warnings = [];
+
+    if (!config.sync) {
+      errors.push('Missing sync settings');
+    }
+
+    if (!config.platforms) {
+      errors.push('Missing platforms configuration');
+    } else {
+      for (const [name, platform] of Object.entries(config.platforms)) {
+        if (platform.enabled) {
+          if (!platform.connection) {
+            errors.push(`${name}: Missing connection configuration`);
+          } else if (platform.connection.type === 'api') {
+            // Check for API credentials
+            const hasPlaceholders = JSON.stringify(platform.connection).includes('${');
+            if (hasPlaceholders) {
+              warnings.push(`${name}: Contains environment variable placeholders`);
+            }
+          }
+        }
+      }
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+      warnings
+    };
+  }
+
+  /**
+   * Return sync not available message
+   */
+  syncNotAvailable() {
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          error: 'Sync engine not available',
+          message: 'Platform sync is not configured or initialized'
+        }, null, 2)
+      }]
+    };
+  }
+
+  /**
    * Handle resources/list request
    */
   handleListResources() {
@@ -439,6 +834,73 @@ class MaestroMCPServer {
           }]
         };
       }
+    }
+
+    if (uri === 'maestro://sync/config') {
+      const projectRoot = process.cwd();
+      const configPath = path.join(projectRoot, '.cdd', 'sync-config.json');
+
+      if (fs.existsSync(configPath)) {
+        return {
+          contents: [{
+            uri,
+            mimeType: 'application/json',
+            text: fs.readFileSync(configPath, 'utf8')
+          }]
+        };
+      }
+
+      return {
+        contents: [{
+          uri,
+          mimeType: 'application/json',
+          text: JSON.stringify({ configured: false })
+        }]
+      };
+    }
+
+    if (uri === 'maestro://sync/status') {
+      if (this.syncEngine) {
+        const status = await this.syncEngine.getSyncStatus();
+        return {
+          contents: [{
+            uri,
+            mimeType: 'application/json',
+            text: JSON.stringify(status, null, 2)
+          }]
+        };
+      }
+
+      return {
+        contents: [{
+          uri,
+          mimeType: 'application/json',
+          text: JSON.stringify({ available: false })
+        }]
+      };
+    }
+
+    if (uri === 'maestro://sync/links') {
+      const projectRoot = process.cwd();
+      const linksPath = path.join(projectRoot, '.cdd', 'sync-links.json');
+
+      if (fs.existsSync(linksPath)) {
+        return {
+          contents: [{
+            uri,
+            mimeType: 'application/json',
+            text: fs.readFileSync(linksPath, 'utf8')
+          }]
+        };
+      }
+
+      return {
+        contents: [{
+          uri,
+          mimeType: 'application/json',
+          text: JSON.stringify({ links: [] })
+        }]
+      };
     }
 
     throw new Error(`Resource not found: ${uri}`);
