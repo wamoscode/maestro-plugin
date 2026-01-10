@@ -8,18 +8,37 @@
   "updated": "{{UPDATED_TIMESTAMP}}",
   "workflow": "{{WORKFLOW_TYPE}}",
 
+  "hierarchy": {
+    "parent": null,
+    "children": [],
+    "level": "track",
+    "epicId": null
+  },
+
+  "relationships": {
+    "blockedBy": [],
+    "blocks": [],
+    "relatesTo": [],
+    "duplicates": null,
+    "duplicatedBy": []
+  },
+
   "scope": {
     "type": "single-project",
     "project": "{{PROJECT_NAME}}",
     "projects": [],
     "submodules": [],
-    "crossProject": false
+    "crossProject": false,
+    "estimatedComplexity": "{{COMPLEXITY}}",
+    "estimatedTasks": "{{ESTIMATED_TASKS}}",
+    "estimatedPhases": "{{ESTIMATED_PHASES}}"
   },
 
   "agents": {
     "primary": ["{{PRIMARY_AGENT_1}}", "{{PRIMARY_AGENT_2}}"],
     "secondary": ["{{SECONDARY_AGENT_1}}"],
-    "perProject": {}
+    "perProject": {},
+    "performance": {}
   },
 
   "phases": {
@@ -36,6 +55,28 @@
     "perProject": {}
   },
 
+  "qualityGates": {
+    "phaseCheckpoint": {
+      "enabled": true,
+      "lastPassed": null,
+      "results": []
+    },
+    "preCompletion": {
+      "enabled": true,
+      "passed": false,
+      "results": []
+    }
+  },
+
+  "metrics": {
+    "startedAt": null,
+    "completedAt": null,
+    "duration": null,
+    "iterations": 0,
+    "coverageAchieved": null,
+    "qualityScore": null
+  },
+
   "commits": [],
   "commitsByProject": {},
 
@@ -44,8 +85,22 @@
     "after": {}
   },
 
+  "stash": {
+    "stashed": false,
+    "stashedAt": null,
+    "stashReason": null,
+    "resumeNotes": null
+  },
+
   "current_task": null,
   "blockers": [],
   "notes": [],
-  "reverted": null
+  "tags": [],
+  "reverted": null,
+
+  "knowledge": {
+    "decisions": [],
+    "patterns": [],
+    "retrospective": null
+  }
 }

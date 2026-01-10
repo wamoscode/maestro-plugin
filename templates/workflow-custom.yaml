@@ -1,0 +1,312 @@
+# Custom Workflow DSL Template
+# Use this template to define custom development workflows beyond TDD/Agile/Minimal
+
+# Workflow metadata
+name: custom-workflow-name
+version: "1.0"
+description: "Description of this workflow methodology"
+extends: null  # Optional: tdd, agile, or minimal to inherit from
+
+# Workflow configuration
+config:
+  # Default quality thresholds
+  thresholds:
+    coverage: 80
+    lint_errors: 0
+    type_errors: 0
+    security_vulnerabilities: 0
+
+  # Commit settings
+  commits:
+    require_per_task: true
+    message_format: "conventional"  # conventional, simple, detailed
+    sign_commits: false
+
+  # Agent settings
+  agents:
+    require_primary: true
+    allow_parallel: true
+    max_per_task: 5
+
+# Phase definitions
+# Phases are executed in order
+phases:
+  - id: design
+    name: "Design & Planning"
+    description: "Initial design and architecture phase"
+    required: true
+    parallel_tasks: false
+
+    # Default agents for this phase
+    default_agents:
+      - software-architect
+      - api-designer
+
+    # Phase-specific checkpoint
+    checkpoint:
+      enabled: true
+      criteria:
+        - id: design_review
+          name: "Design Review"
+          type: manual
+          required: true
+        - id: spec_complete
+          name: "Specification Complete"
+          type: check
+          condition: "spec.md exists and approved"
+
+  - id: implementation
+    name: "Implementation"
+    description: "Core development phase"
+    required: true
+    parallel_tasks: true
+
+    default_agents:
+      - backend-developer
+      - frontend-developer
+
+    # Conditional agents based on task properties
+    conditional_agents:
+      - condition: "task.involves_database"
+        agents: [sql-pro]
+      - condition: "task.involves_security"
+        agents: [security-auditor]
+
+    checkpoint:
+      enabled: true
+      criteria:
+        - id: lint
+          name: "Linting"
+          type: command
+          command: "${project.lint_command}"
+          required: true
+        - id: types
+          name: "Type Check"
+          type: command
+          command: "${project.type_check_command}"
+          required: true
+        - id: tests
+          name: "Unit Tests"
+          type: command
+          command: "${project.test_command}"
+          required: true
+        - id: coverage
+          name: "Coverage Check"
+          type: metric
+          command: "${project.coverage_command}"
+          parse: "coverage_percentage"
+          threshold: 80
+          comparison: gte
+          required: true
+
+  - id: review
+    name: "Review & Refinement"
+    description: "Code review and quality assurance"
+    required: true
+    parallel_tasks: false
+
+    default_agents:
+      - code-reviewer
+      - qa-expert
+
+    checkpoint:
+      enabled: true
+      criteria:
+        - id: code_review
+          name: "Code Review"
+          type: manual
+          required: true
+        - id: security_scan
+          name: "Security Scan"
+          type: command
+          command: "${project.security_command}"
+          required: false
+
+  - id: documentation
+    name: "Documentation"
+    description: "Update documentation and knowledge capture"
+    required: false
+    parallel_tasks: true
+    skip_condition: "track.type == 'bug' && track.complexity == 'simple'"
+
+    default_agents:
+      - documentation-engineer
+
+    checkpoint:
+      enabled: false
+
+  - id: release
+    name: "Release Preparation"
+    description: "Final checks and release preparation"
+    required: true
+    parallel_tasks: false
+
+    default_agents:
+      - devops-engineer
+      - qa-expert
+
+    checkpoint:
+      enabled: true
+      criteria:
+        - id: integration_tests
+          name: "Integration Tests"
+          type: command
+          command: "${project.integration_test_command}"
+          required: true
+        - id: e2e_tests
+          name: "E2E Tests"
+          type: command
+          command: "${project.e2e_test_command}"
+          required: false
+        - id: build
+          name: "Production Build"
+          type: command
+          command: "${project.build_command}"
+          required: true
+
+# Task lifecycle hooks
+hooks:
+  on_task_start:
+    - action: log
+      message: "Starting task: ${task.id}"
+    - action: notify
+      condition: "task.complexity == 'complex'"
+      message: "Complex task started: ${task.title}"
+
+  on_task_complete:
+    - action: log
+      message: "Completed task: ${task.id}"
+    - action: update_metrics
+
+  on_phase_complete:
+    - action: run_checkpoint
+    - action: create_snapshot
+      context_files: true
+    - action: notify
+      message: "Phase ${phase.name} completed"
+
+  on_track_complete:
+    - action: generate_retrospective
+    - action: capture_patterns
+    - action: update_knowledge_base
+    - action: create_adr
+      condition: "track.has_significant_decisions"
+
+# Quality gates configuration
+quality_gates:
+  phase_checkpoint:
+    id: phase_checkpoint
+    enabled: true
+    failure_policy: block  # block, warn, skip
+    retry_policy:
+      max_retries: 2
+      retry_delay: 5000
+
+  pre_completion:
+    id: pre_completion
+    enabled: true
+    failure_policy: block
+    criteria:
+      - id: all_tests
+        name: "All Tests Pass"
+        type: command
+        command: "${project.test_command}"
+        required: true
+      - id: coverage_target
+        name: "Coverage Target"
+        type: metric
+        threshold: "${thresholds.coverage}"
+        comparison: gte
+        required: true
+      - id: no_lint_errors
+        name: "No Lint Errors"
+        type: command
+        command: "${project.lint_command}"
+        required: true
+      - id: security_clear
+        name: "Security Clear"
+        type: command
+        command: "${project.security_command}"
+        required: true
+
+  security_review:
+    id: security_review
+    enabled: true
+    trigger: "track.involves_security"
+    failure_policy: block
+    criteria:
+      - id: secrets_scan
+        name: "Secrets Scan"
+        type: command
+        command: "git secrets --scan"
+        required: true
+      - id: dependency_audit
+        name: "Dependency Audit"
+        type: command
+        command: "npm audit --audit-level=high"
+        required: true
+
+# Agent team compositions for common scenarios
+agent_teams:
+  api_feature:
+    name: "API Feature Team"
+    trigger: "task.involves_api"
+    agents:
+      primary: [api-designer, backend-developer]
+      secondary: [security-auditor, qa-expert]
+
+  fullstack_feature:
+    name: "Full-Stack Feature Team"
+    trigger: "task.involves_frontend && task.involves_backend"
+    agents:
+      primary: [fullstack-developer]
+      secondary: [frontend-developer, backend-developer, qa-expert]
+
+  database_change:
+    name: "Database Change Team"
+    trigger: "task.involves_database"
+    agents:
+      primary: [sql-pro]
+      secondary: [backend-developer, qa-expert]
+
+  security_feature:
+    name: "Security Feature Team"
+    trigger: "task.involves_security"
+    agents:
+      primary: [security-auditor, backend-developer]
+      secondary: [qa-expert]
+
+# Track type specific overrides
+track_overrides:
+  bug:
+    phases:
+      - design:
+          required: false
+      - documentation:
+          required: false
+    thresholds:
+      coverage: 70
+
+  chore:
+    phases:
+      - design:
+          required: false
+      - review:
+          required: false
+    quality_gates:
+      pre_completion:
+        enabled: false
+
+  refactor:
+    phases:
+      - design:
+          required: true
+    thresholds:
+      coverage: 90
+
+# Variables available for interpolation
+# ${project.*} - Project configuration from tech-stack.md
+# ${track.*} - Current track metadata
+# ${task.*} - Current task metadata
+# ${phase.*} - Current phase metadata
+# ${thresholds.*} - Threshold values from config

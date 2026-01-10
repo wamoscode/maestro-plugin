@@ -179,11 +179,73 @@ Would you like me to:
 
 ## Related Commands
 
+### Core Commands
 - `/maestro:setup` - Initialize project context
 - `/maestro:newTrack` - Create new track
 - `/maestro:status` - View current status
 - `/maestro:implement` - Execute track implementation
+- `/maestro:revert` - Rollback track changes
+
+### Workspace Commands
 - `/maestro:workspace` - Manage multi-project workspace
+- `/maestro:projects` - Switch between projects
+
+### New in v1.5
+- `/maestro:dashboard` - Rich visual dashboard with progress bars
+- `/maestro:impact` - Analyze change impact and blast radius
+- `/maestro:stash` - Pause/resume tracks without reverting
+- `/maestro:quick` - Fast shortcuts for common actions
+
+## New Features (v1.5)
+
+### Context Versioning
+- Automatic snapshots of context files
+- Version history and comparison
+- Semantic conflict detection with active tracks
+- Rollback to previous context states
+
+### Track Hierarchy & Relationships
+- Epic → Story → Task hierarchy
+- Track relationships: blockedBy, blocks, relatesTo
+- Duplicate detection and linking
+
+### Quality Gates
+- Automated checkpoint execution
+- Configurable quality criteria
+- CI/CD integration hooks
+- Per-track quality metrics
+
+### Agent Performance Tracking
+- Task completion metrics per agent
+- Effectiveness scoring
+- Intelligent agent selection based on history
+- Team composition effectiveness
+
+### Impact Analysis
+- Blast radius visualization
+- Dependency graph analysis
+- Risk assessment and scoring
+- Testing strategy recommendations
+
+### Track Archetypes
+Pre-defined templates for common track types:
+- `api-endpoint` - REST/GraphQL API implementation
+- `auth-feature` - Authentication/authorization
+- `database-migration` - Schema changes
+- `integration` - Third-party integrations
+- `performance-optimization` - Performance improvements
+
+### Knowledge Capture
+- Automatic ADR generation
+- Pattern library from completed tracks
+- Track retrospective prompts
+- Decision history tracking
+
+### Custom Workflows
+- YAML-based workflow DSL
+- Conditional phases
+- Custom quality gates
+- Agent team compositions
 
 ---
 
