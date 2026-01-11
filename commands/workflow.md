@@ -9,6 +9,26 @@ aliases: [flow, pipeline]
 
 Define and execute complex multi-step workflows with ordered agent execution, dependencies, and gates. Integrates with track system for structured project management.
 
+## CRITICAL: Sub-Agent Execution Required
+
+**ALL workflow steps MUST be executed through sub-agents via the Task tool.**
+
+When executing a workflow:
+
+1. **EVERY step** invokes the specified sub-agent through Task tool
+2. **ALWAYS** use `subagent_type` parameter matching the workflow agent
+3. **NEVER** execute workflow steps without Task tool invocation
+4. **PARALLEL steps** use multiple concurrent Task tool calls
+
+```text
+Workflow: backend-developer -> qa-expert -> devops-engineer
+
+Execution:
+Step 1: Task tool → subagent_type="backend-developer"
+Step 2: Task tool → subagent_type="qa-expert"
+Step 3: Task tool → subagent_type="devops-engineer"
+```
+
 ## Invocation
 
 ```bash

@@ -9,6 +9,30 @@ aliases: [context, cdd-mode]
 
 Activate Context-Driven Development (CDD) mode for your current session. This command loads all project context and primes Claude to work with structured tracks, specifications, plans, and checkpoints.
 
+## CRITICAL: Mandatory Sub-Agent Usage in CDD Mode
+
+**When CDD mode is active, ALL tasks MUST be processed through sub-agents via the Task tool.**
+
+This is NOT optional. In CDD mode:
+
+1. **EVERY task** - no matter how simple - routes to appropriate sub-agent(s)
+2. **ALWAYS** use the Task tool with `subagent_type` parameter
+3. **NEVER** process implementation tasks directly
+4. **NEVER** ask if user wants sub-agents - they are mandatory in CDD
+
+```
+CDD MODE = AUTOMATIC SUB-AGENT ROUTING FOR ALL TASKS
+
+User: "Add a button to the form"
+Action: Task tool → subagent_type="frontend-developer"
+
+User: "Fix the login bug"
+Action: Task tool → subagent_type="backend-developer" (+ security-auditor if auth-related)
+
+User: "Optimize this query"
+Action: Task tool → subagent_type="sql-pro"
+```
+
 ## Purpose
 
 Use this command at the **start of any session** to ensure Claude:
@@ -467,3 +491,71 @@ If validation fails:
 - Report specific issues
 - Suggest remediation
 - Offer to fix or reinitialize
+
+---
+
+## MANDATORY EXECUTION DIRECTIVE FOR CDD MODE
+
+**Once CDD mode is activated, EVERY subsequent task MUST use the Task tool with sub-agents.**
+
+### Automatic Routing Rules
+
+When user requests ANY task in CDD mode:
+
+```text
+1. ANALYZE the request
+2. SELECT appropriate sub-agent(s) based on:
+   - Task domain (frontend, backend, database, etc.)
+   - Project tech stack (from tech-stack.md)
+   - Workflow requirements (qa-expert for TDD)
+3. INVOKE Task tool immediately
+4. RETURN synthesized results
+```
+
+### Task Tool Pattern
+
+```javascript
+// For EVERY task in CDD mode
+Task({
+  subagent_type: "<domain-specialist>",
+  prompt: "<task description with project context>",
+  description: "<brief summary>"
+})
+```
+
+### Quick Reference: Task → Agent Mapping
+
+| User Says | Route To |
+|-----------|----------|
+| "Add/create/build [UI element]" | frontend-developer |
+| "Add/create [API/endpoint]" | backend-developer, api-designer |
+| "Fix [bug]" | relevant domain specialist |
+| "Optimize [query/database]" | sql-pro |
+| "Review [security/code]" | security-auditor, qa-expert |
+| "Test [feature]" | qa-expert |
+| "Deploy/setup [infra]" | devops-engineer |
+| "Design [architecture]" | software-architect |
+
+### CDD Mode Guarantees
+
+When CDD is active, the user should NEVER need to say:
+- "use sub-agents"
+- "with appropriate specialists"
+- "route this to..."
+
+Sub-agent routing is AUTOMATIC and MANDATORY.
+
+### DO NOT in CDD Mode
+
+- Process tasks without Task tool invocation
+- Ask "should I use sub-agents?"
+- Skip routing for any task type
+- Implement directly without specialist consultation
+
+### ALWAYS in CDD Mode
+
+- Route every task through Task tool
+- Select agents based on task + tech stack
+- Use multiple agents for complex tasks
+- Include qa-expert for TDD workflow
+- Include security-auditor for auth-related work
