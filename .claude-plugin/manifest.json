@@ -2,7 +2,7 @@
   "$schema": "https://claude.ai/schemas/plugin-manifest-v1.json",
   "id": "maestro",
   "name": "Maestro",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Master orchestrator plugin with Context-Driven Development, platform sync, multi-project workspaces, git submodule support, and 40+ specialized sub-agents",
   "main": "../plugin.json",
   "type": "plugin",
