@@ -9,6 +9,27 @@ aliases: [orchestrate, delegate, conduct]
 
 Analyze a task and orchestrate execution across specialized sub-agents. When project context exists (via `/maestro:setup`), leverages product definition, tech stack, and workflow for informed orchestration.
 
+## CRITICAL: Mandatory Sub-Agent Usage
+
+**EVERY task processed through /maestro MUST use sub-agents via the Task tool.**
+
+This is NOT optional. When a user invokes /maestro with any task:
+
+1. **ALWAYS** analyze the task and select appropriate sub-agent(s)
+2. **ALWAYS** invoke the Task tool with `subagent_type` parameter
+3. **NEVER** process the task directly without sub-agent routing
+4. **NEVER** ask the user if they want to use sub-agents - just use them
+
+```
+WRONG: Processing task directly without sub-agents
+RIGHT: Task tool → subagent_type="backend-developer" (or appropriate agent)
+```
+
+Even for seemingly simple tasks, route to specialists:
+- "Fix a typo" → frontend-developer or backend-developer
+- "Add a comment" → appropriate language specialist
+- "Quick question about code" → Explore agent or relevant specialist
+
 ## Invocation
 
 ```bash
@@ -288,3 +309,56 @@ For each agent assignment:
    - Track creation if warranted
    - Documentation updates
 ```
+
+---
+
+## MANDATORY EXECUTION DIRECTIVE
+
+**When /maestro is invoked, you MUST immediately use the Task tool with sub-agents.**
+
+### Required Action Pattern
+
+```
+1. ANALYZE task → Identify domain(s) and select agent(s)
+2. INVOKE Task tool → subagent_type="<selected-agent>"
+3. SYNTHESIZE results → Return agent output to user
+```
+
+### Task Tool Usage
+
+```javascript
+// ALWAYS use this pattern
+Task({
+  subagent_type: "<agent-name>",  // REQUIRED: e.g., "backend-developer"
+  prompt: "<detailed task with context>",
+  description: "<3-5 word summary>"
+})
+```
+
+### Agent Selection Quick Reference
+
+| Task Type | Sub-Agent(s) |
+|-----------|--------------|
+| API/Backend | backend-developer, api-designer |
+| Frontend/UI | frontend-developer, ui-designer |
+| Database | sql-pro, database specialist |
+| Security | security-auditor |
+| Testing | qa-expert |
+| DevOps | devops-engineer |
+| Code Review | relevant specialist + qa-expert |
+| Performance | performance-engineer |
+| Architecture | software-architect |
+
+### DO NOT
+
+- Process tasks directly without sub-agents
+- Ask "would you like me to use sub-agents?"
+- Skip routing for "simple" tasks
+- Respond without invoking Task tool first
+
+### ALWAYS
+
+- Route EVERY task to at least one sub-agent
+- Use Task tool before providing any implementation
+- Select specialists based on task domain
+- Combine multiple agents for complex tasks (parallel Task calls)

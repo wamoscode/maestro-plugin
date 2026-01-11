@@ -9,6 +9,25 @@ aliases: [parallel, pexec]
 
 Execute multiple sub-agents simultaneously for independent, non-conflicting tasks.
 
+## CRITICAL: Parallel Task Tool Invocation Required
+
+**ALL parallel executions MUST use multiple concurrent Task tool calls.**
+
+When executing this command:
+
+1. **EVERY agent** specified must be invoked via separate Task tool call
+2. **ALL Task calls** must be made in a SINGLE message (true parallel execution)
+3. **NEVER** execute agents sequentially when parallel is requested
+4. **ALWAYS** use `subagent_type` parameter for each Task call
+
+```text
+/parallel-execute frontend-developer:"Build UI" backend-developer:"Build API"
+
+Execution (SINGLE message with multiple Task tool calls):
+- Task tool → subagent_type="frontend-developer", prompt="Build UI"
+- Task tool → subagent_type="backend-developer", prompt="Build API"
+```
+
 ## Invocation
 
 ```

@@ -9,6 +9,28 @@ aliases: [impl, execute, work]
 
 Execute the implementation plan for a track, routing tasks to specialized sub-agents and following your chosen workflow methodology.
 
+## CRITICAL: Mandatory Sub-Agent Routing
+
+**ALL tasks in /maestro:implement MUST be executed through sub-agents via the Task tool.**
+
+This is NOT optional:
+
+1. **EVERY task** from the plan routes to appropriate sub-agent(s)
+2. **ALWAYS** use Task tool with `subagent_type` parameter
+3. **NEVER** implement tasks directly without sub-agent routing
+4. **AUTOMATICALLY** select agents based on task type and tech stack
+
+```text
+Plan Task: "Implement JWT middleware"
+→ Task tool: subagent_type="backend-developer" + "security-auditor"
+
+Plan Task: "Create login form component"
+→ Task tool: subagent_type="frontend-developer"
+
+Plan Task: "Add user table migration"
+→ Task tool: subagent_type="sql-pro"
+```
+
 **Multi-Project Support**: Execute cross-project tracks across multiple repositories with coordinated commits and submodule handling.
 
 ## What It Does
