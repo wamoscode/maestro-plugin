@@ -18,7 +18,7 @@ NC='\033[0m' # No Color
 
 # Plugin info
 PLUGIN_NAME="maestro"
-PLUGIN_VERSION="1.8.1"
+PLUGIN_VERSION="1.9.0"
 GITHUB_REPO="https://github.com/wamoscode/maestro-plugin"
 
 echo -e "${BLUE}╔════════════════════════════════════════════╗${NC}"
@@ -150,7 +150,7 @@ case $choice in
         if [ ! -f "$CONFIG_DIR/config.json" ]; then
             cat > "$CONFIG_DIR/config.json" << 'EOF'
 {
-  "version": "1.8.1",
+  "version": "1.9.0",
   "maxParallelAgents": 5,
   "defaultTimeout": 300000,
   "enableLogging": true,

@@ -538,7 +538,52 @@ For the remainder of this session:
      - Release lock on session end
 ```
 
-### Step 6.5: Notification Triggers (NEW in v1.8)
+### Step 6.5: Knowledge System Initialization (NEW)
+
+```
+Initialize the context-aware learning system:
+
+1. LOAD Knowledge Store:
+   - Ensure maestro/knowledge/ directory exists
+   - Load or build knowledge index for branch
+   - Initialize KnowledgeStore with branch context
+   - Log: "Knowledge store loaded: X entries"
+
+2. INITIALIZE Learning Journal:
+   - Start new journal session with sessionId
+   - Link to current branch and track
+   - Enable real-time capture
+   - Log: "Learning journal started"
+
+3. START Context Enrichment:
+   - Initialize ContextEnrichment engine
+   - Connect to KnowledgeRecall for task enrichment
+   - Enable decision capture triggers
+   - Enable phase completion hooks
+   - Log: "Context enrichment active"
+
+4. CONFIGURE Feedback Loop:
+   - Track which knowledge is injected into tasks
+   - Prepare to record outcomes after task completion
+   - Enable success/failure tracking for used knowledge
+
+5. DISPLAY Knowledge Summary:
+   - Show knowledge store stats
+   - List recent decisions (last 5)
+   - Show any high-confidence patterns
+   - Indicate learning mode is active
+
+Example Output:
+┌─────────────────────────────────────────────────────────┐
+│ Knowledge System Initialized                             │
+├─────────────────────────────────────────────────────────┤
+│ Store: 47 entries (12 decisions, 8 patterns, 27 other) │
+│ Recent: "Use JWT for auth", "Prefer functional comps"  │
+│ Learning: Journal active, Enrichment enabled            │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Step 6.6: Notification Triggers (NEW in v1.8)
 
 ```
 Fire notification to other sessions when:

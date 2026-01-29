@@ -497,21 +497,47 @@ Verify dependencies:
    - For cross-project: current_project
 ```
 
-### Step 7: Route to Sub-Agent(s)
+### Step 7: Route to Sub-Agent(s) with Knowledge Injection
 
 ```
 1. Parse task for agent assignment
-2. Load project-specific context:
+
+2. INJECT RELEVANT KNOWLEDGE (NEW):
+   - Call KnowledgeRecall.recallForTask(task)
+   - Score and rank relevant past knowledge
+   - Filter by minimum relevance threshold (0.3)
+   - Format knowledge for agent context:
+
+   ## Relevant Past Knowledge
+   ### Decisions (with confidence scores)
+   - "Use JWT for authentication" (85% confidence, 92% relevance)
+   - "Prefer functional components" (78% confidence, 75% relevance)
+
+   ### Applicable Patterns
+   - Error handling pattern: try-catch with custom error types
+   - API response format: { success, data, error }
+
+   ### Recommendations
+   - Review decision on caching strategy (high priority)
+   - Similar task had authentication blocker - check token refresh
+
+   - Track which knowledge IDs were injected for feedback loop
+
+3. Load project-specific context:
    - tech-stack.md from task's project
    - code-styleguide.md from task's project
-3. Invoke sub-agent with context
+
+4. Invoke sub-agent with ENRICHED context:
+   - Original task description
+   - Injected knowledge context
+   - Project-specific guidelines
 ```
 
 ### Step 8: Execute According to Workflow
 
 Follow workflow from project's workflow.md or workspace workflow.md.
 
-### Step 9: Commit Changes
+### Step 9: Commit Changes and Capture Decisions
 
 **Single Project:**
 ```
@@ -519,6 +545,32 @@ Follow workflow from project's workflow.md or workspace workflow.md.
 2. Create commit message
 3. Commit: git commit -m "<message>"
 4. Capture SHA
+
+5. CAPTURE DECISIONS FROM AGENT OUTPUT (NEW):
+   - Parse agent output for decision indicators:
+     * "decided to", "chose", "selected", "will use"
+     * "prefer", "going with", "approach"
+   - For each detected decision:
+     a. Call LearningJournal.logDecision({
+          title: extracted decision title,
+          rationale: extracted reasoning,
+          agentId: executing agent,
+          taskId: current task,
+          phase: current phase,
+          confidence: calculated from language certainty
+        })
+     b. Trigger ContextEnrichment.onDecisionCapture()
+   - Log discoveries and patterns similarly
+
+6. RECORD KNOWLEDGE OUTCOME (NEW):
+   - For each knowledge ID injected in Step 7:
+     a. Determine if knowledge was helpful:
+        - Was it referenced in agent output?
+        - Did task complete successfully?
+     b. Call KnowledgeStore.recordOutcome(id, {
+          taskId, trackId, success, impact, notes
+        })
+   - This improves future knowledge relevance scoring
 ```
 
 **Submodule Project:**
@@ -530,6 +582,7 @@ Follow workflow from project's workflow.md or workspace workflow.md.
 5. Ask to update parent reference:
    - If yes: cd to parent, stage submodule, commit
    - Record parent commit in submoduleState.after
+6. Capture decisions and record outcomes (as above)
 ```
 
 **Cross-Project (Atomic):**
@@ -538,6 +591,7 @@ After all projects complete:
 1. Verify all submodule commits
 2. Update parent references for all submodules
 3. Create final parent commit linking all changes
+4. Aggregate decisions across all project tasks
 ```
 
 ### Step 10: Update Plan
@@ -550,22 +604,55 @@ After all projects complete:
 3. Update metadata.json
 ```
 
-### Step 11: Check Phase/Project Completion
+### Step 11: Check Phase/Project Completion with Learning Summary
 
 ```
 If all tasks in current phase are [x]:
   1. Run phase checkpoint verification
   2. Display checkpoint summary
-  3. Ask for confirmation to continue
+
+  3. SUMMARIZE PHASE LEARNINGS (NEW):
+     a. Call SessionLearningController.onPhaseCompletion(phase, track)
+     b. Collect all journal entries for this phase:
+        - Decisions made
+        - Discoveries found
+        - Blockers resolved
+        - Patterns identified
+
+     c. Display Phase Learning Summary:
+     ┌─────────────────────────────────────────────────────────┐
+     │ Phase 2 Learning Summary                                │
+     ├─────────────────────────────────────────────────────────┤
+     │ Decisions: 3 captured                                   │
+     │   • Use connection pooling for DB (high confidence)     │
+     │   • Implement retry logic with exponential backoff      │
+     │   • Cache user sessions in Redis                        │
+     │                                                         │
+     │ Discoveries: 1                                          │
+     │   • Pattern: All API endpoints follow /api/v1/{resource}│
+     │                                                         │
+     │ Blockers Resolved: 1                                    │
+     │   • Auth token expiry → Implemented refresh flow        │
+     │                                                         │
+     │ Knowledge Injected: 2 entries used, 2 helpful           │
+     └─────────────────────────────────────────────────────────┘
+
+     d. Generate enrichment suggestions:
+        - Suggest updating context files if significant decisions
+        - Propose adding to pattern library
+        - Flag documentation updates needed
+
+  4. Ask for confirmation to continue
 
 For cross-project:
   If all tasks for current project are [x]:
     1. Run project checkpoint
-    2. If submodule: prompt for parent update
-    3. Move to next project
+    2. Summarize project-specific learnings
+    3. If submodule: prompt for parent update
+    4. Move to next project
 ```
 
-### Step 12: Check Track Completion
+### Step 12: Check Track Completion with Full Knowledge Synthesis
 
 ```
 If all tasks in all phases/projects are [x]:
@@ -573,7 +660,61 @@ If all tasks in all phases/projects are [x]:
   2. Display track completion summary
   3. For cross-project: show per-project summary
   4. Show submodule update summary
-  5. Update tracks.md status to "completed"
+
+  5. FULL KNOWLEDGE SYNTHESIS (NEW):
+     a. Call SessionLearningController.finalizeSession()
+     b. Export journal to knowledge base:
+        - Filter by minimum confidence threshold (0.6)
+        - Save decisions, patterns, discoveries, blockers
+        - Update knowledge index
+
+     c. Generate Enhanced Retrospective:
+        - Call KnowledgeCapture.createRetrospectiveWithJournal()
+        - Include all session learnings
+        - Document key decisions with rationale
+        - List discovered patterns
+        - Record blocker resolutions with prevention strategies
+
+     d. Display Knowledge Report:
+     ══════════════════════════════════════════════════════════
+       TRACK KNOWLEDGE SYNTHESIS: TRACK-002
+     ══════════════════════════════════════════════════════════
+
+     Knowledge Captured:
+       • Decisions: 8 (6 high-confidence, persisted to knowledge base)
+       • Patterns: 3 (added to pattern library)
+       • Research: 2 findings
+       • Blockers: 2 resolved (with prevention strategies)
+
+     Key Decisions:
+       1. Use JWT with refresh tokens for auth (ADR-0012)
+       2. Implement rate limiting at API gateway
+       3. Cache frequently accessed data in Redis
+
+     New Patterns:
+       1. API error handling with typed error responses
+       2. Repository pattern for data access
+
+     Context Updates Suggested:
+       • tech-stack.md: Add Redis caching section
+       • product-guidelines.md: Document auth approach
+
+     Feedback Loop:
+       • Knowledge injected: 12 entries across 15 tasks
+       • Helpful: 10 (83% success rate)
+       • Knowledge confidence adjusted for 12 entries
+
+     ══════════════════════════════════════════════════════════
+
+     e. Prompt for context updates:
+        - "Apply suggested context updates? (Y/n)"
+        - If approved, apply enrichments
+
+  6. Update tracks.md status to "completed"
+
+  7. Archive session journal:
+     - Save to maestro/knowledge/sessions/{sessionId}.json
+     - Link to track retrospective
 ```
 
 ### Error Handling
