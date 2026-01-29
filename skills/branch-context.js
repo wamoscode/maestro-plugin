@@ -13,6 +13,8 @@
  */
 
 const path = require('path');
+const fs = require('fs');
+const { execSync } = require('child_process');
 
 class BranchContextManager {
   constructor(config = {}) {
@@ -106,193 +108,235 @@ class BranchContextManager {
 
   /**
    * Unsanitize branch name back to original format
+   * Note: This is an approximation since some characters are lost in sanitization
    * @param {string} sanitized - Sanitized branch name
    * @returns {string} Original branch name (approximation)
    */
   unsanitizeBranchName(sanitized) {
-    return sanitized.replace(/--/g, '/');
+    return sanitized
+      .replace(/--/g, '/')
+      .replace(/_/g, '-'); // Best effort to restore dashes that may have been underscores
   }
 
   /**
    * Detect context structure (legacy vs branch-aware)
-   * @returns {Object} Detection action
+   * @returns {Object} Detection result
    */
   detectContextStructure() {
     const paths = this.getPaths();
 
-    return {
-      action: 'detect_context_structure',
-      checks: [
-        {
-          name: 'gitignore_aware_marker',
-          path: paths.gitignoreAware,
-          type: 'file',
-          indicates: 'branch-aware'
-        },
-        {
-          name: 'branches_directory',
-          path: paths.branches,
-          type: 'directory',
-          indicates: 'branch-aware'
-        },
-        {
-          name: 'shared_directory',
-          path: paths.shared.root,
-          type: 'directory',
-          indicates: 'branch-aware'
-        },
-        {
-          name: 'legacy_product',
-          path: paths.legacy.product,
-          type: 'file',
-          indicates: 'legacy'
-        },
-        {
-          name: 'legacy_tracks',
-          path: paths.legacy.tracks,
-          type: 'directory',
-          indicates: 'legacy'
-        }
-      ],
-      interpretation: {
-        'branch-aware': 'maestro/ is gitignored and uses branch-specific context',
-        'legacy': 'maestro/ uses legacy flat structure',
-        'hybrid': 'maestro/ has both structures (needs migration)',
-        'none': 'No maestro/ context found'
+    const checks = {
+      gitignoreAwareMarker: fs.existsSync(paths.gitignoreAware),
+      branchesDirectory: fs.existsSync(paths.branches),
+      sharedDirectory: fs.existsSync(paths.shared.root),
+      legacyProduct: fs.existsSync(paths.legacy.product),
+      legacyTracks: fs.existsSync(paths.legacy.tracks)
+    };
+
+    let structure = 'none';
+    if (checks.gitignoreAwareMarker || checks.branchesDirectory || checks.sharedDirectory) {
+      if (checks.legacyProduct || checks.legacyTracks) {
+        structure = 'hybrid';
+      } else {
+        structure = 'branch-aware';
       }
+    } else if (checks.legacyProduct || checks.legacyTracks) {
+      structure = 'legacy';
+    }
+
+    const interpretations = {
+      'branch-aware': 'maestro/ is gitignored and uses branch-specific context',
+      'legacy': 'maestro/ uses legacy flat structure',
+      'hybrid': 'maestro/ has both structures (needs migration)',
+      'none': 'No maestro/ context found'
+    };
+
+    return {
+      structure: structure,
+      checks: checks,
+      interpretation: interpretations[structure],
+      message: interpretations[structure]
     };
   }
 
   /**
    * Get current git branch
-   * @returns {Object} Git branch detection action
+   * @returns {Object} Git branch detection result
    */
   getCurrentBranch() {
-    return {
-      action: 'get_current_branch',
-      steps: [
-        {
-          step: 1,
-          description: 'Get current branch name',
-          command: 'git branch --show-current',
-          fallback: 'git rev-parse --abbrev-ref HEAD'
-        },
-        {
-          step: 2,
-          description: 'Handle detached HEAD',
-          condition: 'output is empty or HEAD',
-          fallback_command: 'git rev-parse --short HEAD',
-          prefix: 'detached-'
+    try {
+      let branch = execSync('git branch --show-current', { encoding: 'utf8' }).trim();
+      let isDetached = false;
+      let commit = null;
+
+      if (!branch || branch === 'HEAD') {
+        // Try fallback for detached HEAD
+        branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim();
+
+        if (branch === 'HEAD') {
+          // Truly detached, get short commit hash
+          commit = execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim();
+          branch = `detached-${commit}`;
+          isDetached = true;
         }
-      ],
-      output: {
-        branch: '{{branch_name}}',
-        isDetached: '{{is_detached}}',
-        commit: '{{short_commit}}'
       }
-    };
+
+      return {
+        branch: branch,
+        isDetached: isDetached,
+        commit: commit,
+        message: isDetached ? `Detached HEAD at ${commit}` : `Current branch: ${branch}`
+      };
+    } catch (error) {
+      return {
+        branch: 'unknown',
+        isDetached: false,
+        commit: null,
+        error: error.message,
+        message: `Failed to get current branch: ${error.message}`
+      };
+    }
   }
 
   /**
    * Load context for a branch
    * @param {string} branch - Branch name
-   * @returns {Object} Context load action
+   * @returns {Object} Context load result
    */
   loadBranchContext(branch) {
     const paths = this.getPaths(branch);
-
-    return {
-      action: 'load_branch_context',
+    const result = {
       branch: branch,
-      steps: [
-        {
-          step: 1,
-          description: 'Detect context structure',
-          action: this.detectContextStructure()
-        },
-        {
-          step: 2,
-          description: 'Load shared context (read-only)',
-          files: [
-            { path: paths.shared.product, key: 'product', optional: true },
-            { path: paths.shared.techStack, key: 'techStack', optional: true },
-            { path: paths.shared.workflow, key: 'workflow', optional: true },
-            { path: paths.shared.guidelines, key: 'guidelines', optional: true },
-            { path: paths.shared.styleguide, key: 'styleguide', optional: true },
-            { path: paths.shared.workspace, key: 'workspace', optional: true, parse: 'json' }
-          ],
-          fallback_to_legacy: true
-        },
-        {
-          step: 3,
-          description: 'Load branch-specific context',
-          files: [
-            { path: paths.branch.context, key: 'branchContext', optional: true, parse: 'json' },
-            { path: paths.branch.tracksIndex, key: 'tracksIndex', optional: true }
-          ]
-        },
-        {
-          step: 4,
-          description: 'List branch tracks',
-          command: `ls -1 "${paths.branch.tracks}" 2>/dev/null || echo ""`
-        },
-        {
-          step: 5,
-          description: 'Load active track metadata if exists',
-          condition: 'branchContext.activeTrack exists',
-          file: '{{paths.branch.tracks}}/{{activeTrack}}/metadata.json',
-          parse: 'json'
-        }
-      ],
-      output: {
-        shared: '{{shared_context}}',
-        branch: '{{branch_context}}',
-        tracks: '{{track_list}}',
-        activeTrack: '{{active_track_metadata}}'
-      }
+      shared: {},
+      branchContext: null,
+      tracks: [],
+      activeTrack: null
     };
+
+    try {
+      // Step 1: Detect context structure
+      const structure = this.detectContextStructure();
+
+      // Step 2: Load shared context (with fallback to legacy)
+      const sharedFiles = [
+        { key: 'product', path: paths.shared.product, legacy: paths.legacy.product },
+        { key: 'techStack', path: paths.shared.techStack, legacy: paths.legacy.techStack },
+        { key: 'workflow', path: paths.shared.workflow, legacy: paths.legacy.workflow },
+        { key: 'guidelines', path: paths.shared.guidelines, legacy: path.join(this.config.maestroDir, 'product-guidelines.md') },
+        { key: 'styleguide', path: paths.shared.styleguide, legacy: path.join(this.config.maestroDir, 'code-styleguide.md') }
+      ];
+
+      for (const file of sharedFiles) {
+        const filePath = fs.existsSync(file.path) ? file.path : file.legacy;
+        if (fs.existsSync(filePath)) {
+          result.shared[file.key] = fs.readFileSync(filePath, 'utf8');
+        }
+      }
+
+      // Load workspace JSON
+      if (fs.existsSync(paths.shared.workspace)) {
+        try {
+          result.shared.workspace = JSON.parse(fs.readFileSync(paths.shared.workspace, 'utf8'));
+        } catch (e) {
+          // Invalid JSON
+        }
+      }
+
+      // Step 3: Load branch-specific context
+      if (paths.branch && fs.existsSync(paths.branch.context)) {
+        try {
+          result.branchContext = JSON.parse(fs.readFileSync(paths.branch.context, 'utf8'));
+        } catch (e) {
+          // Invalid JSON
+        }
+      }
+
+      if (paths.branch && fs.existsSync(paths.branch.tracksIndex)) {
+        result.tracksIndex = fs.readFileSync(paths.branch.tracksIndex, 'utf8');
+      }
+
+      // Step 4: List branch tracks
+      if (paths.branch && fs.existsSync(paths.branch.tracks)) {
+        result.tracks = fs.readdirSync(paths.branch.tracks, { withFileTypes: true })
+          .filter(d => d.isDirectory())
+          .map(d => d.name);
+      }
+
+      // Step 5: Load active track metadata
+      if (result.branchContext?.activeTrack && paths.branch) {
+        const trackMetadataPath = path.join(paths.branch.tracks, result.branchContext.activeTrack, 'metadata.json');
+        if (fs.existsSync(trackMetadataPath)) {
+          try {
+            result.activeTrack = JSON.parse(fs.readFileSync(trackMetadataPath, 'utf8'));
+          } catch (e) {
+            // Invalid JSON
+          }
+        }
+      }
+
+      return {
+        loaded: true,
+        structure: structure.structure,
+        ...result,
+        message: `Context loaded for branch '${branch}'`
+      };
+    } catch (error) {
+      return {
+        loaded: false,
+        ...result,
+        error: error.message,
+        message: `Failed to load context: ${error.message}`
+      };
+    }
   }
 
   /**
    * Save branch context
    * @param {string} branch - Branch name
    * @param {Object} context - Context data to save
-   * @returns {Object} Context save action
+   * @returns {Object} Context save result
    */
   saveBranchContext(branch, context) {
     const paths = this.getPaths(branch);
 
-    return {
-      action: 'save_branch_context',
-      branch: branch,
-      context: context,
-      steps: [
-        {
-          step: 1,
-          description: 'Ensure branch directory exists',
-          command: `mkdir -p "${paths.branch.root}" "${paths.branch.tracks}"`
-        },
-        {
-          step: 2,
-          description: 'Update last accessed timestamp',
-          transform: {
-            ...context,
-            lastAccessed: new Date().toISOString()
-          }
-        },
-        {
-          step: 3,
-          description: 'Write branch context file',
-          command: `echo '${JSON.stringify(context, null, 2)}' > "${paths.branch.context}"`
-        }
-      ]
-    };
+    try {
+      // Ensure branch directory exists
+      if (!fs.existsSync(paths.branch.root)) {
+        fs.mkdirSync(paths.branch.root, { recursive: true });
+      }
+      if (!fs.existsSync(paths.branch.tracks)) {
+        fs.mkdirSync(paths.branch.tracks, { recursive: true });
+      }
+
+      // Update last accessed timestamp
+      const updatedContext = {
+        ...context,
+        lastAccessed: new Date().toISOString()
+      };
+
+      // Write branch context file
+      fs.writeFileSync(paths.branch.context, JSON.stringify(updatedContext, null, 2), 'utf8');
+
+      return {
+        saved: true,
+        branch: branch,
+        contextPath: paths.branch.context,
+        message: `Context saved for branch '${branch}'`
+      };
+    } catch (error) {
+      return {
+        saved: false,
+        branch: branch,
+        error: error.message,
+        message: `Failed to save context: ${error.message}`
+      };
+    }
   }
 
   /**
    * Initialize branch context
    * @param {string} branch - Branch name
-   * @returns {Object} Context initialization action
+   * @returns {Object} Context initialization result
    */
   initializeBranchContext(branch) {
     const paths = this.getPaths(branch);
@@ -313,40 +357,43 @@ class BranchContextManager {
       }
     };
 
-    return {
-      action: 'initialize_branch_context',
-      branch: branch,
-      paths: paths.branch,
-      initialContext: initialContext,
-      steps: [
-        {
-          step: 1,
-          description: 'Create branch directory structure',
-          commands: [
-            `mkdir -p "${paths.branch.root}"`,
-            `mkdir -p "${paths.branch.tracks}"`
-          ]
-        },
-        {
-          step: 2,
-          description: 'Check if context already exists',
-          command: `test -f "${paths.branch.context}" && echo "exists" || echo "new"`
-        },
-        {
-          step: 3,
-          description: 'Create initial context if new',
-          condition: 'result === "new"',
-          command: `echo '${JSON.stringify(initialContext, null, 2)}' > "${paths.branch.context}"`
-        },
-        {
-          step: 4,
-          description: 'Create empty tracks index if needed',
-          condition: 'tracks.md does not exist',
-          content: this.getTracksIndexTemplate(branch),
-          file: paths.branch.tracksIndex
-        }
-      ]
-    };
+    try {
+      // Step 1: Create branch directory structure
+      if (!fs.existsSync(paths.branch.root)) {
+        fs.mkdirSync(paths.branch.root, { recursive: true });
+      }
+      if (!fs.existsSync(paths.branch.tracks)) {
+        fs.mkdirSync(paths.branch.tracks, { recursive: true });
+      }
+
+      // Step 2 & 3: Create initial context if it doesn't exist
+      const contextExists = fs.existsSync(paths.branch.context);
+      if (!contextExists) {
+        fs.writeFileSync(paths.branch.context, JSON.stringify(initialContext, null, 2), 'utf8');
+      }
+
+      // Step 4: Create empty tracks index if needed
+      if (!fs.existsSync(paths.branch.tracksIndex)) {
+        fs.writeFileSync(paths.branch.tracksIndex, this.getTracksIndexTemplate(branch), 'utf8');
+      }
+
+      return {
+        initialized: true,
+        branch: branch,
+        paths: paths.branch,
+        isNew: !contextExists,
+        message: contextExists
+          ? `Branch context already exists for '${branch}'`
+          : `Branch context initialized for '${branch}'`
+      };
+    } catch (error) {
+      return {
+        initialized: false,
+        branch: branch,
+        error: error.message,
+        message: `Failed to initialize context: ${error.message}`
+      };
+    }
   }
 
   /**
@@ -379,239 +426,372 @@ class BranchContextManager {
   /**
    * Migrate legacy context to branch-aware structure
    * @param {string} targetBranch - Branch to migrate to
-   * @returns {Object} Migration action
+   * @returns {Object} Migration result
    */
   migrateTobranchAware(targetBranch) {
     const paths = this.getPaths(targetBranch);
+    let copiedSharedFiles = [];
+    let copiedTracks = 0;
 
-    return {
-      action: 'migrate_to_branch_aware',
-      targetBranch: targetBranch,
-      steps: [
-        {
-          step: 1,
-          description: 'Create shared directory',
-          command: `mkdir -p "${paths.shared.root}"`
-        },
-        {
-          step: 2,
-          description: 'Move shared files to shared directory',
-          commands: this.sharedFiles.map(file => {
-            const legacyPath = path.join(this.config.maestroDir, file);
-            const sharedPath = path.join(paths.shared.root, file);
-            return `test -f "${legacyPath}" && cp "${legacyPath}" "${sharedPath}" || true`;
-          })
-        },
-        {
-          step: 3,
-          description: 'Create branch directory structure',
-          command: `mkdir -p "${paths.branch.root}" "${paths.branch.tracks}"`
-        },
-        {
-          step: 4,
-          description: 'Copy tracks to branch (if legacy tracks exist)',
-          command: `test -d "${paths.legacy.tracks}" && cp -r "${paths.legacy.tracks}/"* "${paths.branch.tracks}/" 2>/dev/null || true`
-        },
-        {
-          step: 5,
-          description: 'Copy tracks index to branch',
-          command: `test -f "${paths.legacy.tracksIndex}" && cp "${paths.legacy.tracksIndex}" "${paths.branch.tracksIndex}" || true`
-        },
-        {
-          step: 6,
-          description: 'Initialize branch context',
-          action: this.initializeBranchContext(targetBranch)
-        },
-        {
-          step: 7,
-          description: 'Create gitignore-aware marker',
-          content: JSON.stringify({
-            version: '1.0.0',
-            migratedAt: new Date().toISOString(),
-            migratedFrom: 'legacy',
-            initialBranch: targetBranch,
-            sharedFiles: this.sharedFiles
-          }, null, 2),
-          file: paths.gitignoreAware
-        },
-        {
-          step: 8,
-          description: 'Create session directories',
-          commands: [
-            `mkdir -p "${paths.sessions}"`,
-            `mkdir -p "${paths.notifications}/pending"`,
-            `mkdir -p "${paths.notifications}/archive"`
-          ]
+    try {
+      // Step 1: Create shared directory
+      if (!fs.existsSync(paths.shared.root)) {
+        fs.mkdirSync(paths.shared.root, { recursive: true });
+      }
+
+      // Step 2: Copy shared files to shared directory
+      for (const file of this.sharedFiles) {
+        const legacyPath = path.join(this.config.maestroDir, file);
+        const sharedPath = path.join(paths.shared.root, file);
+
+        if (fs.existsSync(legacyPath) && !fs.existsSync(sharedPath)) {
+          fs.copyFileSync(legacyPath, sharedPath);
+          copiedSharedFiles.push(file);
         }
-      ],
-      output_template: `
-Migration to Branch-Aware Structure Complete
+      }
 
-Shared Context:
-  Location: ${paths.shared.root}
-  Files: ${this.sharedFiles.join(', ')}
+      // Step 3: Create branch directory structure
+      if (!fs.existsSync(paths.branch.root)) {
+        fs.mkdirSync(paths.branch.root, { recursive: true });
+      }
+      if (!fs.existsSync(paths.branch.tracks)) {
+        fs.mkdirSync(paths.branch.tracks, { recursive: true });
+      }
 
-Branch Context:
-  Branch: ${targetBranch}
-  Location: ${paths.branch.root}
-  Tracks: Copied from legacy structure
+      // Step 4: Copy tracks to branch (if legacy tracks exist)
+      if (fs.existsSync(paths.legacy.tracks)) {
+        const tracks = fs.readdirSync(paths.legacy.tracks, { withFileTypes: true })
+          .filter(d => d.isDirectory());
 
-Session Support:
-  Registry: ${paths.registry}
-  Notifications: ${paths.notifications}
+        for (const track of tracks) {
+          const srcPath = path.join(paths.legacy.tracks, track.name);
+          const destPath = path.join(paths.branch.tracks, track.name);
 
-Note: Legacy files are preserved. After verification, you can remove:
-  - ${paths.legacy.product}
-  - ${paths.legacy.techStack}
-  - ${paths.legacy.workflow}
-  - ${paths.legacy.tracks}/ (directory)
-`
-    };
+          if (!fs.existsSync(destPath)) {
+            this.copyDirRecursive(srcPath, destPath);
+            copiedTracks++;
+          }
+        }
+      }
+
+      // Step 5: Copy tracks index to branch
+      if (fs.existsSync(paths.legacy.tracksIndex) && !fs.existsSync(paths.branch.tracksIndex)) {
+        fs.copyFileSync(paths.legacy.tracksIndex, paths.branch.tracksIndex);
+      }
+
+      // Step 6: Initialize branch context
+      this.initializeBranchContext(targetBranch);
+
+      // Step 7: Create gitignore-aware marker
+      const markerContent = {
+        version: '1.0.0',
+        migratedAt: new Date().toISOString(),
+        migratedFrom: 'legacy',
+        initialBranch: targetBranch,
+        sharedFiles: this.sharedFiles,
+        copiedSharedFiles: copiedSharedFiles,
+        copiedTracks: copiedTracks
+      };
+      fs.writeFileSync(paths.gitignoreAware, JSON.stringify(markerContent, null, 2), 'utf8');
+
+      // Step 8: Create session directories
+      if (!fs.existsSync(paths.sessions)) {
+        fs.mkdirSync(paths.sessions, { recursive: true });
+      }
+      if (!fs.existsSync(path.join(paths.notifications, 'pending'))) {
+        fs.mkdirSync(path.join(paths.notifications, 'pending'), { recursive: true });
+      }
+      if (!fs.existsSync(path.join(paths.notifications, 'archive'))) {
+        fs.mkdirSync(path.join(paths.notifications, 'archive'), { recursive: true });
+      }
+
+      return {
+        migrated: true,
+        targetBranch: targetBranch,
+        copiedSharedFiles: copiedSharedFiles,
+        copiedTracks: copiedTracks,
+        paths: {
+          shared: paths.shared.root,
+          branch: paths.branch.root,
+          sessions: paths.sessions,
+          notifications: paths.notifications
+        },
+        message: `Migration completed: ${copiedSharedFiles.length} shared files, ${copiedTracks} tracks copied`
+      };
+    } catch (error) {
+      return {
+        migrated: false,
+        targetBranch: targetBranch,
+        error: error.message,
+        message: `Migration failed: ${error.message}`
+      };
+    }
+  }
+
+  /**
+   * Recursively copy a directory
+   * @param {string} src - Source path
+   * @param {string} dest - Destination path
+   */
+  copyDirRecursive(src, dest) {
+    fs.mkdirSync(dest, { recursive: true });
+
+    const entries = fs.readdirSync(src, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const srcPath = path.join(src, entry.name);
+      const destPath = path.join(dest, entry.name);
+
+      if (entry.isDirectory()) {
+        this.copyDirRecursive(srcPath, destPath);
+      } else {
+        fs.copyFileSync(srcPath, destPath);
+      }
+    }
   }
 
   /**
    * Query context from another branch (read-only)
    * @param {string} targetBranch - Branch to query
    * @param {string} query - What to retrieve
-   * @returns {Object} Cross-branch query action
+   * @returns {Object} Cross-branch query result
    */
   queryBranchContext(targetBranch, query) {
     const paths = this.getPaths(targetBranch);
 
-    const queryTypes = {
-      tracks: {
-        file: paths.branch.tracksIndex,
-        description: 'Get track list from branch'
-      },
-      activeTrack: {
-        file: paths.branch.context,
-        parse: 'json',
-        extract: 'activeTrack',
-        description: 'Get active track ID'
-      },
-      context: {
-        file: paths.branch.context,
-        parse: 'json',
-        description: 'Get full branch context'
-      },
-      trackMetadata: {
-        pattern: `${paths.branch.tracks}/*/metadata.json`,
-        parse: 'json',
-        description: 'Get all track metadata'
+    try {
+      switch (query) {
+        case 'tracks':
+          if (fs.existsSync(paths.branch.tracksIndex)) {
+            return {
+              query: 'tracks',
+              branch: targetBranch,
+              data: fs.readFileSync(paths.branch.tracksIndex, 'utf8'),
+              message: `Tracks index from branch '${targetBranch}'`
+            };
+          }
+          return {
+            query: 'tracks',
+            branch: targetBranch,
+            data: null,
+            message: 'No tracks index found'
+          };
+
+        case 'activeTrack':
+          if (fs.existsSync(paths.branch.context)) {
+            const context = JSON.parse(fs.readFileSync(paths.branch.context, 'utf8'));
+            return {
+              query: 'activeTrack',
+              branch: targetBranch,
+              data: context.activeTrack,
+              message: context.activeTrack
+                ? `Active track: ${context.activeTrack}`
+                : 'No active track'
+            };
+          }
+          return {
+            query: 'activeTrack',
+            branch: targetBranch,
+            data: null,
+            message: 'No context file found'
+          };
+
+        case 'trackMetadata':
+          if (fs.existsSync(paths.branch.tracks)) {
+            const trackDirs = fs.readdirSync(paths.branch.tracks, { withFileTypes: true })
+              .filter(d => d.isDirectory());
+
+            const metadata = {};
+            for (const track of trackDirs) {
+              const metaPath = path.join(paths.branch.tracks, track.name, 'metadata.json');
+              if (fs.existsSync(metaPath)) {
+                try {
+                  metadata[track.name] = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+                } catch (e) {
+                  // Skip invalid files
+                }
+              }
+            }
+
+            return {
+              query: 'trackMetadata',
+              branch: targetBranch,
+              data: metadata,
+              count: Object.keys(metadata).length,
+              message: `Found ${Object.keys(metadata).length} track(s)`
+            };
+          }
+          return {
+            query: 'trackMetadata',
+            branch: targetBranch,
+            data: {},
+            count: 0,
+            message: 'No tracks directory found'
+          };
+
+        case 'context':
+        default:
+          if (fs.existsSync(paths.branch.context)) {
+            const context = JSON.parse(fs.readFileSync(paths.branch.context, 'utf8'));
+            return {
+              query: 'context',
+              branch: targetBranch,
+              data: context,
+              message: `Context from branch '${targetBranch}'`
+            };
+          }
+          return {
+            query: 'context',
+            branch: targetBranch,
+            data: null,
+            message: 'No context file found'
+          };
       }
-    };
-
-    const queryConfig = queryTypes[query] || queryTypes.context;
-
-    return {
-      action: 'query_branch_context',
-      targetBranch: targetBranch,
-      query: query,
-      config: queryConfig,
-      note: 'Cross-branch queries are read-only'
-    };
+    } catch (error) {
+      return {
+        query: query,
+        branch: targetBranch,
+        data: null,
+        error: error.message,
+        message: `Query failed: ${error.message}`
+      };
+    }
   }
 
   /**
    * List all branches with context
-   * @returns {Object} Branch list action
+   * @returns {Object} Branch list result
    */
   listBranchesWithContext() {
     const paths = this.getPaths();
+    const currentBranchResult = this.getCurrentBranch();
+    const currentBranch = currentBranchResult.branch;
 
-    return {
-      action: 'list_branches_with_context',
-      steps: [
-        {
-          step: 1,
-          description: 'Find all branch context directories',
-          command: `find "${paths.branches}" -maxdepth 1 -type d -not -name "branches" 2>/dev/null`
-        },
-        {
-          step: 2,
-          description: 'Get current git branch',
-          command: 'git branch --show-current'
-        },
-        {
-          step: 3,
-          description: 'For each branch directory',
-          for_each: 'branch_dir',
-          gather: [
-            { from: 'context.json', field: 'lastAccessed' },
-            { from: 'context.json', field: 'activeTrack' },
-            { from: 'active-session.lock', exists: true, field: 'hasLock' },
-            { from: 'tracks', count_items: true, field: 'trackCount' }
-          ]
+    try {
+      if (!fs.existsSync(paths.branches)) {
+        return {
+          branches: [],
+          currentBranch: currentBranch,
+          count: 0,
+          message: 'No branches with CDD context found'
+        };
+      }
+
+      const branchDirs = fs.readdirSync(paths.branches, { withFileTypes: true })
+        .filter(d => d.isDirectory());
+
+      const branches = branchDirs.map(branchDir => {
+        const branchPath = path.join(paths.branches, branchDir.name);
+        const contextPath = path.join(branchPath, 'context.json');
+        const tracksPath = path.join(branchPath, 'tracks');
+        const lockPath = path.join(branchPath, 'active-session.lock');
+
+        let context = null;
+        let trackCount = 0;
+        let hasLock = false;
+
+        if (fs.existsSync(contextPath)) {
+          try {
+            context = JSON.parse(fs.readFileSync(contextPath, 'utf8'));
+          } catch (e) {
+            // Invalid JSON
+          }
         }
-      ],
-      output_template: `
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  BRANCHES WITH CDD CONTEXT
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-│ Branch              │ Tracks │ Active Track │ Session │ Last Used    │
-│─────────────────────│────────│──────────────│─────────│──────────────│
-{{#each branches}}
-│ {{name}} {{#if current}}*{{/if}} │ {{trackCount}} │ {{activeTrack}} │ {{sessionStatus}} │ {{lastAccessed}} │
-{{/each}}
+        if (fs.existsSync(tracksPath)) {
+          try {
+            trackCount = fs.readdirSync(tracksPath, { withFileTypes: true })
+              .filter(d => d.isDirectory()).length;
+          } catch (e) {
+            // Can't read
+          }
+        }
 
-* = current branch
-{{#if hasLocked}}
-Sessions are active on: {{lockedBranches}}
-{{/if}}
+        hasLock = fs.existsSync(lockPath);
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-`
-    };
+        const originalName = this.unsanitizeBranchName(branchDir.name);
+        const isCurrent = originalName === currentBranch ||
+                          branchDir.name === this.sanitizeBranchName(currentBranch);
+
+        return {
+          name: originalName,
+          sanitizedName: branchDir.name,
+          isCurrent: isCurrent,
+          trackCount: trackCount,
+          activeTrack: context?.activeTrack || null,
+          hasSession: hasLock,
+          lastAccessed: context?.lastAccessed || null
+        };
+      });
+
+      const lockedBranches = branches.filter(b => b.hasSession).map(b => b.name);
+
+      return {
+        branches: branches,
+        currentBranch: currentBranch,
+        count: branches.length,
+        lockedBranches: lockedBranches,
+        message: `Found ${branches.length} branch(es) with CDD context`
+      };
+    } catch (error) {
+      return {
+        branches: [],
+        currentBranch: currentBranch,
+        count: 0,
+        error: error.message,
+        message: `Failed to list branches: ${error.message}`
+      };
+    }
   }
 
   /**
    * Get shared context (read-only for all branches)
-   * @returns {Object} Shared context load action
+   * @returns {Object} Shared context load result
    */
   loadSharedContext() {
     const paths = this.getPaths();
+    const isBranchAware = fs.existsSync(paths.shared.root);
+    const shared = {};
 
-    return {
-      action: 'load_shared_context',
-      steps: [
-        {
-          step: 1,
-          description: 'Check for shared directory',
-          command: `test -d "${paths.shared.root}" && echo "branch-aware" || echo "legacy"`
-        },
-        {
-          step: 2,
-          description: 'Load from shared or legacy location',
-          branch_aware: {
-            files: [
-              { path: paths.shared.product, key: 'product' },
-              { path: paths.shared.techStack, key: 'techStack' },
-              { path: paths.shared.workflow, key: 'workflow' },
-              { path: paths.shared.guidelines, key: 'guidelines' },
-              { path: paths.shared.styleguide, key: 'styleguide' }
-            ]
-          },
-          legacy: {
-            files: [
-              { path: paths.legacy.product, key: 'product' },
-              { path: paths.legacy.techStack, key: 'techStack' },
-              { path: paths.legacy.workflow, key: 'workflow' },
-              { path: path.join(this.config.maestroDir, 'product-guidelines.md'), key: 'guidelines' },
-              { path: path.join(this.config.maestroDir, 'code-styleguide.md'), key: 'styleguide' }
-            ]
-          }
+    const files = [
+      { key: 'product', shared: paths.shared.product, legacy: paths.legacy.product },
+      { key: 'techStack', shared: paths.shared.techStack, legacy: paths.legacy.techStack },
+      { key: 'workflow', shared: paths.shared.workflow, legacy: paths.legacy.workflow },
+      { key: 'guidelines', shared: paths.shared.guidelines, legacy: path.join(this.config.maestroDir, 'product-guidelines.md') },
+      { key: 'styleguide', shared: paths.shared.styleguide, legacy: path.join(this.config.maestroDir, 'code-styleguide.md') }
+    ];
+
+    try {
+      for (const file of files) {
+        const filePath = isBranchAware ? file.shared : file.legacy;
+        if (fs.existsSync(filePath)) {
+          shared[file.key] = fs.readFileSync(filePath, 'utf8');
         }
-      ],
-      note: 'Shared context is read-only from branch context'
-    };
+      }
+
+      return {
+        loaded: true,
+        isBranchAware: isBranchAware,
+        shared: shared,
+        loadedFiles: Object.keys(shared),
+        message: `Loaded ${Object.keys(shared).length} shared context file(s)`
+      };
+    } catch (error) {
+      return {
+        loaded: false,
+        isBranchAware: isBranchAware,
+        shared: shared,
+        error: error.message,
+        message: `Failed to load shared context: ${error.message}`
+      };
+    }
   }
 
   /**
    * Update shared context (must be done explicitly)
    * @param {string} file - File to update
    * @param {string} content - New content
-   * @returns {Object} Shared context update action
+   * @returns {Object} Shared context update result
    */
   updateSharedContext(file, content) {
     const paths = this.getPaths();
@@ -620,36 +800,53 @@ Sessions are active on: {{lockedBranches}}
 
     if (!this.sharedFiles.includes(file)) {
       return {
-        action: 'error',
+        updated: false,
+        error: 'invalid_file',
         message: `'${file}' is not a shared context file. Shared files: ${this.sharedFiles.join(', ')}`
       };
     }
 
-    return {
-      action: 'update_shared_context',
-      file: file,
-      steps: [
-        {
-          step: 1,
-          description: 'Detect structure',
-          command: `test -d "${paths.shared.root}" && echo "branch-aware" || echo "legacy"`
-        },
-        {
-          step: 2,
-          description: 'Write to appropriate location',
-          branch_aware_path: sharedPath,
-          legacy_path: legacyPath,
-          content: content
-        },
-        {
-          step: 3,
-          description: 'Update timestamp in gitignore-aware marker',
-          condition: 'is branch-aware',
-          jq_command: `.lastSharedUpdate = "${new Date().toISOString()}" | .lastSharedFile = "${file}"`
+    try {
+      const isBranchAware = fs.existsSync(paths.shared.root);
+      const targetPath = isBranchAware ? sharedPath : legacyPath;
+
+      // Ensure directory exists
+      const targetDir = path.dirname(targetPath);
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
+
+      // Write content
+      fs.writeFileSync(targetPath, content, 'utf8');
+
+      // Update timestamp in gitignore-aware marker if branch-aware
+      if (isBranchAware && fs.existsSync(paths.gitignoreAware)) {
+        try {
+          const marker = JSON.parse(fs.readFileSync(paths.gitignoreAware, 'utf8'));
+          marker.lastSharedUpdate = new Date().toISOString();
+          marker.lastSharedFile = file;
+          fs.writeFileSync(paths.gitignoreAware, JSON.stringify(marker, null, 2), 'utf8');
+        } catch (e) {
+          // Can't update marker, not critical
         }
-      ],
-      warning: 'Shared context changes affect all branches'
-    };
+      }
+
+      return {
+        updated: true,
+        file: file,
+        path: targetPath,
+        isBranchAware: isBranchAware,
+        warning: 'Shared context changes affect all branches',
+        message: `Updated shared file '${file}'`
+      };
+    } catch (error) {
+      return {
+        updated: false,
+        file: file,
+        error: error.message,
+        message: `Failed to update shared context: ${error.message}`
+      };
+    }
   }
 
   /**
@@ -657,7 +854,7 @@ Sessions are active on: {{lockedBranches}}
    * @param {string} trackId - Track to copy
    * @param {string} sourceBranch - Source branch
    * @param {string} targetBranch - Target branch
-   * @returns {Object} Track copy action
+   * @returns {Object} Track copy result
    */
   copyTrackBetweenBranches(trackId, sourceBranch, targetBranch) {
     const sourcePaths = this.getPaths(sourceBranch);
@@ -665,84 +862,135 @@ Sessions are active on: {{lockedBranches}}
     const sourceTrack = path.join(sourcePaths.branch.tracks, trackId);
     const targetTrack = path.join(targetPaths.branch.tracks, trackId);
 
-    return {
-      action: 'copy_track_between_branches',
-      trackId: trackId,
-      source: sourceBranch,
-      target: targetBranch,
-      steps: [
-        {
-          step: 1,
-          description: 'Verify source track exists',
-          command: `test -d "${sourceTrack}" || (echo "Track not found" && exit 1)`
-        },
-        {
-          step: 2,
-          description: 'Check target does not exist',
-          command: `test ! -d "${targetTrack}" || (echo "Track already exists in target" && exit 1)`
-        },
-        {
-          step: 3,
-          description: 'Create target branch context if needed',
-          action: this.initializeBranchContext(targetBranch)
-        },
-        {
-          step: 4,
-          description: 'Copy track directory',
-          command: `cp -r "${sourceTrack}" "${targetTrack}"`
-        },
-        {
-          step: 5,
-          description: 'Update track metadata with new branch',
-          jq_command: `.branch = "${targetBranch}" | .copiedFrom = { branch: "${sourceBranch}", at: "${new Date().toISOString()}" }`,
-          file: `${targetTrack}/metadata.json`
+    try {
+      // Step 1: Verify source track exists
+      if (!fs.existsSync(sourceTrack)) {
+        return {
+          copied: false,
+          error: 'source_not_found',
+          message: `Track '${trackId}' not found in branch '${sourceBranch}'`
+        };
+      }
+
+      // Step 2: Check target does not exist
+      if (fs.existsSync(targetTrack)) {
+        return {
+          copied: false,
+          error: 'target_exists',
+          message: `Track '${trackId}' already exists in branch '${targetBranch}'`
+        };
+      }
+
+      // Step 3: Create target branch context if needed
+      this.initializeBranchContext(targetBranch);
+
+      // Step 4: Copy track directory
+      this.copyDirRecursive(sourceTrack, targetTrack);
+
+      // Step 5: Update track metadata with new branch
+      const metadataPath = path.join(targetTrack, 'metadata.json');
+      if (fs.existsSync(metadataPath)) {
+        try {
+          const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+          metadata.branch = targetBranch;
+          metadata.copiedFrom = {
+            branch: sourceBranch,
+            at: new Date().toISOString()
+          };
+          fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2), 'utf8');
+        } catch (e) {
+          // Can't update metadata, not critical
         }
-      ]
-    };
+      }
+
+      return {
+        copied: true,
+        trackId: trackId,
+        sourceBranch: sourceBranch,
+        targetBranch: targetBranch,
+        sourcePath: sourceTrack,
+        targetPath: targetTrack,
+        message: `Track '${trackId}' copied from '${sourceBranch}' to '${targetBranch}'`
+      };
+    } catch (error) {
+      return {
+        copied: false,
+        trackId: trackId,
+        error: error.message,
+        message: `Failed to copy track: ${error.message}`
+      };
+    }
   }
 
   /**
    * Delete branch context
    * @param {string} branch - Branch to delete context for
-   * @param {boolean} confirm - Require confirmation
-   * @returns {Object} Delete action
+   * @param {boolean} force - Force delete even if session is active
+   * @returns {Object} Delete result
    */
-  deleteBranchContext(branch, confirm = true) {
+  deleteBranchContext(branch, force = false) {
     const paths = this.getPaths(branch);
 
-    return {
-      action: 'delete_branch_context',
-      branch: branch,
-      path: paths.branch.root,
-      requireConfirmation: confirm,
-      steps: [
-        {
-          step: 1,
-          description: 'Check for active session',
-          command: `test -f "${paths.branch.lock}" && echo "has_session" || echo "no_session"`
-        },
-        {
-          step: 2,
-          description: 'Require confirmation if has session',
-          condition: 'has_session',
-          prompt: `Branch '${branch}' has an active session. Force delete?`
-        },
-        {
-          step: 3,
-          description: 'Remove branch context directory',
-          command: `rm -rf "${paths.branch.root}"`
-        },
-        {
-          step: 4,
-          description: 'Update registry to remove branch sessions',
-          action: 'remove_branch_from_registry'
+    try {
+      // Step 1: Check for active session
+      const hasSession = fs.existsSync(paths.branch.lock);
+
+      if (hasSession && !force) {
+        return {
+          deleted: false,
+          error: 'has_session',
+          hasSession: true,
+          message: `Branch '${branch}' has an active session. Use force=true to override.`
+        };
+      }
+
+      // Step 2: Check if branch context exists
+      if (!fs.existsSync(paths.branch.root)) {
+        return {
+          deleted: true,
+          message: `No context exists for branch '${branch}'`
+        };
+      }
+
+      // Step 3: Remove branch context directory
+      this.removeDirRecursive(paths.branch.root);
+
+      return {
+        deleted: true,
+        branch: branch,
+        path: paths.branch.root,
+        hadSession: hasSession,
+        message: `Branch context deleted: ${branch}`
+      };
+    } catch (error) {
+      return {
+        deleted: false,
+        branch: branch,
+        error: error.message,
+        message: `Failed to delete branch context: ${error.message}`
+      };
+    }
+  }
+
+  /**
+   * Recursively remove a directory
+   * @param {string} dirPath - Directory path to remove
+   */
+  removeDirRecursive(dirPath) {
+    if (fs.existsSync(dirPath)) {
+      const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+
+      for (const entry of entries) {
+        const fullPath = path.join(dirPath, entry.name);
+        if (entry.isDirectory()) {
+          this.removeDirRecursive(fullPath);
+        } else {
+          fs.unlinkSync(fullPath);
         }
-      ],
-      output_template: `
-Branch context deleted: ${branch}
-Path removed: ${paths.branch.root}
-`
-    };
+      }
+
+      fs.rmdirSync(dirPath);
+    }
   }
 }
 

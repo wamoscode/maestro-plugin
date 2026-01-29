@@ -16,6 +16,8 @@
 const crypto = require('crypto');
 const path = require('path');
 const os = require('os');
+const fs = require('fs');
+const { execSync } = require('child_process');
 
 class SessionNotifications {
   constructor(config = {}) {
@@ -66,7 +68,7 @@ class SessionNotifications {
   /**
    * Create a notification
    * @param {Object} options - Notification options
-   * @returns {Object} Notification creation action
+   * @returns {Object} Notification creation result
    */
   createNotification(options) {
     const {
@@ -82,7 +84,8 @@ class SessionNotifications {
 
     const notificationId = this.generateNotificationId();
     const filename = this.getNotificationFilename(sessionId);
-    const filePath = path.join(this.getPaths().pending, filename);
+    const pendingDir = this.getPaths().pending;
+    const filePath = path.join(pendingDir, filename);
 
     const notification = {
       id: notificationId,
@@ -99,34 +102,34 @@ class SessionNotifications {
       readBy: []
     };
 
-    return {
-      action: 'create_notification',
-      notification: notification,
-      filePath: filePath,
-      steps: [
-        {
-          step: 1,
-          description: 'Ensure notifications directory exists',
-          command: `mkdir -p "${this.getPaths().pending}"`
-        },
-        {
-          step: 2,
-          description: 'Write notification file',
-          command: `echo '${JSON.stringify(notification, null, 2)}' > "${filePath}"`
-        },
-        {
-          step: 3,
-          description: 'Trigger OS notification if enabled and high priority',
-          condition: this.config.enableOSNotifications && priority === 'high',
-          action: this.sendOSNotification(title, message)
-        }
-      ],
-      success_response: {
+    try {
+      // Ensure notifications directory exists
+      if (!fs.existsSync(pendingDir)) {
+        fs.mkdirSync(pendingDir, { recursive: true });
+      }
+
+      // Write notification file
+      fs.writeFileSync(filePath, JSON.stringify(notification, null, 2), 'utf8');
+
+      // Trigger OS notification if enabled and high priority
+      if (this.config.enableOSNotifications && priority === 'high') {
+        this.sendOSNotification(title, message);
+      }
+
+      return {
         created: true,
         notificationId: notificationId,
+        filePath: filePath,
+        notification: notification,
         message: `Notification created for branch '${branch}'`
-      }
-    };
+      };
+    } catch (error) {
+      return {
+        created: false,
+        error: error.message,
+        message: `Failed to create notification: ${error.message}`
+      };
+    }
   }
 
   /**
@@ -240,70 +243,123 @@ class SessionNotifications {
    * Send OS notification (platform-specific)
    * @param {string} title - Notification title
    * @param {string} message - Notification message
-   * @returns {Object} OS notification action
+   * @returns {Object} OS notification result
    */
   sendOSNotification(title, message) {
     const platform = os.platform();
 
+    // Escape special characters for shell
+    const safeTitle = title.replace(/"/g, '\\"').replace(/'/g, "\\'");
+    const safeMessage = message.replace(/"/g, '\\"').replace(/'/g, "\\'");
+
     const commands = {
-      darwin: `osascript -e 'display notification "${message}" with title "Maestro CDD" subtitle "${title}"'`,
-      linux: `notify-send "Maestro CDD: ${title}" "${message}" -u normal`,
-      win32: `powershell -Command "& {Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('${message}', 'Maestro CDD: ${title}')}"`
+      darwin: `osascript -e 'display notification "${safeMessage}" with title "Maestro CDD" subtitle "${safeTitle}"'`,
+      linux: `notify-send "Maestro CDD: ${safeTitle}" "${safeMessage}" -u normal`,
+      win32: `powershell -Command "& {Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.MessageBox]::Show('${safeMessage}', 'Maestro CDD: ${safeTitle}')}"`
     };
 
-    return {
-      action: 'send_os_notification',
-      platform: platform,
-      command: commands[platform] || null,
-      fallback: platform === 'darwin' || platform === 'linux' ? null : 'echo "OS notifications not supported"'
-    };
+    const command = commands[platform];
+
+    if (!command) {
+      return {
+        sent: false,
+        platform: platform,
+        message: 'OS notifications not supported on this platform'
+      };
+    }
+
+    try {
+      execSync(command, { encoding: 'utf8', stdio: 'ignore' });
+      return {
+        sent: true,
+        platform: platform,
+        message: 'OS notification sent'
+      };
+    } catch (error) {
+      return {
+        sent: false,
+        platform: platform,
+        error: error.message,
+        message: `Failed to send OS notification: ${error.message}`
+      };
+    }
   }
 
   /**
    * Poll for pending notifications
    * @param {string} currentSessionId - Current session to exclude
    * @param {string} currentBranch - Current branch (optional, to show own branch notifications)
-   * @returns {Object} Poll action
+   * @returns {Object} Poll result
    */
   pollNotifications(currentSessionId, currentBranch = null) {
     const pendingDir = this.getPaths().pending;
+    this.lastPollTime = new Date().toISOString();
 
-    return {
-      action: 'poll_notifications',
-      pendingDir: pendingDir,
-      currentSessionId: currentSessionId,
-      currentBranch: currentBranch,
-      steps: [
-        {
-          step: 1,
-          description: 'List pending notification files',
-          command: `ls -1 "${pendingDir}" 2>/dev/null | head -${this.config.maxPendingNotifications}`
-        },
-        {
-          step: 2,
-          description: 'Read each notification file',
-          for_each: 'notification_file',
-          parse: 'json'
-        },
-        {
-          step: 3,
-          description: 'Filter out own session notifications and expired ones',
-          filter: [
-            { field: 'sessionId', not_equals: currentSessionId },
-            { field: 'expiresAt', greater_than: 'now' }
-          ]
-        },
-        {
-          step: 4,
-          description: 'Sort by priority then timestamp',
-          sort: [
-            { field: 'priority', order: ['high', 'normal', 'low'] },
-            { field: 'createdAt', order: 'desc' }
-          ]
+    try {
+      if (!fs.existsSync(pendingDir)) {
+        return {
+          notifications: [],
+          count: 0,
+          message: 'No notifications'
+        };
+      }
+
+      // List notification files
+      const files = fs.readdirSync(pendingDir)
+        .filter(f => f.endsWith('.json'))
+        .slice(0, this.config.maxPendingNotifications);
+
+      const now = Date.now();
+      const notifications = [];
+
+      for (const file of files) {
+        try {
+          const filePath = path.join(pendingDir, file);
+          const content = fs.readFileSync(filePath, 'utf8');
+          const notification = JSON.parse(content);
+
+          // Filter: exclude own session and expired
+          if (notification.sessionId === currentSessionId) {
+            continue;
+          }
+
+          if (new Date(notification.expiresAt).getTime() < now) {
+            continue;
+          }
+
+          notifications.push({
+            ...notification,
+            filePath: filePath
+          });
+        } catch (e) {
+          // Skip invalid files
         }
-      ],
-      output_template: this.getNotificationBannerTemplate()
-    };
+      }
+
+      // Sort by priority then timestamp
+      const priorityOrder = { high: 0, normal: 1, low: 2 };
+      notifications.sort((a, b) => {
+        const priorityDiff = (priorityOrder[a.priority] || 1) - (priorityOrder[b.priority] || 1);
+        if (priorityDiff !== 0) return priorityDiff;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+
+      return {
+        notifications: notifications,
+        count: notifications.length,
+        lastPoll: this.lastPollTime,
+        message: notifications.length > 0
+          ? `Found ${notifications.length} notification(s)`
+          : 'No new notifications'
+      };
+    } catch (error) {
+      return {
+        notifications: [],
+        count: 0,
+        error: error.message,
+        message: `Failed to poll notifications: ${error.message}`
+      };
+    }
   }
 
   /**
@@ -351,173 +407,278 @@ class SessionNotifications {
   /**
    * List all pending notifications
    * @param {Object} options - List options
-   * @returns {Object} List action
+   * @returns {Object} List result
    */
   listNotifications(options = {}) {
     const { includeExpired = false, includeRead = false, branch = null } = options;
     const pendingDir = this.getPaths().pending;
 
-    return {
-      action: 'list_notifications',
-      pendingDir: pendingDir,
-      options: { includeExpired, includeRead, branch },
-      steps: [
-        {
-          step: 1,
-          description: 'Find all notification files',
-          command: `find "${pendingDir}" -name "*.json" -type f 2>/dev/null`
-        },
-        {
-          step: 2,
-          description: 'Read and parse each file',
-          for_each: 'file',
-          parse: 'json'
-        },
-        {
-          step: 3,
-          description: 'Apply filters',
-          filters: {
-            expired: includeExpired ? null : { field: 'expiresAt', greater_than: 'now' },
-            read: includeRead ? null : { field: 'read', equals: false },
-            branch: branch ? { field: 'branch', equals: branch } : null
+    try {
+      if (!fs.existsSync(pendingDir)) {
+        return {
+          notifications: [],
+          count: 0,
+          message: 'No pending notifications'
+        };
+      }
+
+      const files = fs.readdirSync(pendingDir).filter(f => f.endsWith('.json'));
+      const now = Date.now();
+      const notifications = [];
+
+      for (const file of files) {
+        try {
+          const filePath = path.join(pendingDir, file);
+          const content = fs.readFileSync(filePath, 'utf8');
+          const notification = JSON.parse(content);
+
+          // Apply filters
+          if (!includeExpired && new Date(notification.expiresAt).getTime() < now) {
+            continue;
           }
+
+          if (!includeRead && notification.read) {
+            continue;
+          }
+
+          if (branch && notification.branch !== branch) {
+            continue;
+          }
+
+          notifications.push({
+            ...notification,
+            filePath: filePath,
+            icon: this.getNotificationIcon(notification.type)
+          });
+        } catch (e) {
+          // Skip invalid files
         }
-      ],
-      output_template: `
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  PENDING NOTIFICATIONS ({{count}})
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      }
 
-{{#each notifications}}
-{{icon type}} [{{priority}}] {{title}}
-   Branch: {{branch}}
-   Message: {{message}}
-   Created: {{createdAt}}
-   Expires: {{expiresAt}}
-   {{#if action}}
-   Action: {{action.command}}
-   {{/if}}
-{{#unless @last}}
-──────────────────────────────────────────────────────────────
-{{/unless}}
-{{/each}}
-
-{{#unless notifications.length}}
-No pending notifications.
-{{/unless}}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-`
-    };
+      return {
+        notifications: notifications,
+        count: notifications.length,
+        filters: { includeExpired, includeRead, branch },
+        message: notifications.length > 0
+          ? `Found ${notifications.length} notification(s)`
+          : 'No pending notifications'
+      };
+    } catch (error) {
+      return {
+        notifications: [],
+        count: 0,
+        error: error.message,
+        message: `Failed to list notifications: ${error.message}`
+      };
+    }
   }
 
   /**
    * Mark notification as read
    * @param {string} notificationId - Notification to mark
    * @param {string} readBySessionId - Session that read it
-   * @returns {Object} Mark read action
+   * @returns {Object} Mark read result
    */
   markAsRead(notificationId, readBySessionId) {
     const pendingDir = this.getPaths().pending;
 
-    return {
-      action: 'mark_notification_read',
-      notificationId: notificationId,
-      readBy: readBySessionId,
-      steps: [
-        {
-          step: 1,
-          description: 'Find notification file by ID',
-          command: `grep -l '"id": "${notificationId}"' "${pendingDir}"/*.json 2>/dev/null | head -1`
-        },
-        {
-          step: 2,
-          description: 'Update read status',
-          jq_command: `.read = true | .readBy += ["${readBySessionId}"]`
-        },
-        {
-          step: 3,
-          description: 'Write updated notification',
-          action: 'update_file'
+    try {
+      if (!fs.existsSync(pendingDir)) {
+        return {
+          marked: false,
+          message: `Notification ${notificationId} not found`
+        };
+      }
+
+      // Find notification file by ID
+      const files = fs.readdirSync(pendingDir).filter(f => f.endsWith('.json'));
+
+      for (const file of files) {
+        const filePath = path.join(pendingDir, file);
+        try {
+          const content = fs.readFileSync(filePath, 'utf8');
+          const notification = JSON.parse(content);
+
+          if (notification.id === notificationId) {
+            // Update read status
+            notification.read = true;
+            if (!notification.readBy) {
+              notification.readBy = [];
+            }
+            if (!notification.readBy.includes(readBySessionId)) {
+              notification.readBy.push(readBySessionId);
+            }
+
+            // Write updated notification
+            fs.writeFileSync(filePath, JSON.stringify(notification, null, 2), 'utf8');
+
+            return {
+              marked: true,
+              notificationId: notificationId,
+              readBy: readBySessionId,
+              message: `Notification ${notificationId} marked as read`
+            };
+          }
+        } catch (e) {
+          // Skip invalid files
         }
-      ]
-    };
+      }
+
+      return {
+        marked: false,
+        notificationId: notificationId,
+        message: `Notification ${notificationId} not found`
+      };
+    } catch (error) {
+      return {
+        marked: false,
+        error: error.message,
+        message: `Failed to mark notification as read: ${error.message}`
+      };
+    }
   }
 
   /**
    * Clear notifications
    * @param {Object} options - Clear options
-   * @returns {Object} Clear action
+   * @returns {Object} Clear result
    */
   clearNotifications(options = {}) {
     const { branch = null, sessionId = null, all = false, archive = true } = options;
     const paths = this.getPaths();
+    let clearedCount = 0;
 
-    return {
-      action: 'clear_notifications',
-      options: { branch, sessionId, all, archive },
-      steps: [
-        {
-          step: 1,
-          description: 'Find matching notification files',
-          command: all
-            ? `find "${paths.pending}" -name "*.json" -type f`
-            : branch
-              ? `grep -l '"branch": "${branch}"' "${paths.pending}"/*.json 2>/dev/null`
-              : sessionId
-                ? `find "${paths.pending}" -name "*-${sessionId.slice(-8)}.json"`
-                : 'echo ""'
-        },
-        {
-          step: 2,
-          description: archive ? 'Move to archive' : 'Delete files',
-          command_template: archive
-            ? `mkdir -p "${paths.archive}" && mv "{{file}}" "${paths.archive}/"`
-            : `rm -f "{{file}}"`
-        }
-      ],
-      success_response: {
-        cleared: true,
-        count: '{{count}}',
-        archived: archive
+    try {
+      if (!fs.existsSync(paths.pending)) {
+        return {
+          cleared: true,
+          count: 0,
+          archived: archive,
+          message: 'No notifications to clear'
+        };
       }
-    };
+
+      // Ensure archive directory exists if archiving
+      if (archive && !fs.existsSync(paths.archive)) {
+        fs.mkdirSync(paths.archive, { recursive: true });
+      }
+
+      const files = fs.readdirSync(paths.pending).filter(f => f.endsWith('.json'));
+
+      for (const file of files) {
+        const filePath = path.join(paths.pending, file);
+
+        try {
+          // Check if file matches criteria
+          let shouldClear = all;
+
+          if (!all) {
+            const content = fs.readFileSync(filePath, 'utf8');
+            const notification = JSON.parse(content);
+
+            if (branch && notification.branch === branch) {
+              shouldClear = true;
+            }
+            if (sessionId && notification.sessionId === sessionId) {
+              shouldClear = true;
+            }
+          }
+
+          if (shouldClear) {
+            if (archive) {
+              // Move to archive
+              const archivePath = path.join(paths.archive, file);
+              fs.renameSync(filePath, archivePath);
+            } else {
+              // Delete file
+              fs.unlinkSync(filePath);
+            }
+            clearedCount++;
+          }
+        } catch (e) {
+          // Skip problem files
+        }
+      }
+
+      return {
+        cleared: true,
+        count: clearedCount,
+        archived: archive,
+        message: `Cleared ${clearedCount} notification(s)`
+      };
+    } catch (error) {
+      return {
+        cleared: false,
+        count: clearedCount,
+        error: error.message,
+        message: `Failed to clear notifications: ${error.message}`
+      };
+    }
   }
 
   /**
    * Cleanup expired notifications
-   * @returns {Object} Cleanup action
+   * @returns {Object} Cleanup result
    */
   cleanupExpired() {
     const paths = this.getPaths();
-
-    return {
-      action: 'cleanup_expired_notifications',
-      steps: [
-        {
-          step: 1,
-          description: 'Find all notification files',
-          command: `find "${paths.pending}" -name "*.json" -type f`
-        },
-        {
-          step: 2,
-          description: 'Check expiry for each',
-          for_each: 'file',
-          check: 'expiresAt < now'
-        },
-        {
-          step: 3,
-          description: 'Archive expired notifications',
-          command_template: `mkdir -p "${paths.archive}" && mv "{{file}}" "${paths.archive}/"`
-        }
-      ],
-      output_template: `
-Cleanup completed:
-- Checked: {{total}} notifications
-- Archived: {{archived}} expired notifications
-- Remaining: {{remaining}} active notifications
-`
+    const results = {
+      total: 0,
+      archived: 0,
+      remaining: 0
     };
+
+    try {
+      if (!fs.existsSync(paths.pending)) {
+        return {
+          ...results,
+          message: 'No notifications to cleanup'
+        };
+      }
+
+      // Ensure archive directory exists
+      if (!fs.existsSync(paths.archive)) {
+        fs.mkdirSync(paths.archive, { recursive: true });
+      }
+
+      const files = fs.readdirSync(paths.pending).filter(f => f.endsWith('.json'));
+      const now = Date.now();
+
+      for (const file of files) {
+        const filePath = path.join(paths.pending, file);
+        results.total++;
+
+        try {
+          const content = fs.readFileSync(filePath, 'utf8');
+          const notification = JSON.parse(content);
+
+          if (new Date(notification.expiresAt).getTime() < now) {
+            // Archive expired notification
+            const archivePath = path.join(paths.archive, file);
+            fs.renameSync(filePath, archivePath);
+            results.archived++;
+          } else {
+            results.remaining++;
+          }
+        } catch (e) {
+          // Invalid file, archive it anyway
+          const archivePath = path.join(paths.archive, file);
+          fs.renameSync(filePath, archivePath);
+          results.archived++;
+        }
+      }
+
+      return {
+        ...results,
+        message: `Cleanup completed: Checked ${results.total}, archived ${results.archived}, ${results.remaining} active`
+      };
+    } catch (error) {
+      return {
+        ...results,
+        error: error.message,
+        message: `Cleanup failed: ${error.message}`
+      };
+    }
   }
 
   /**
@@ -542,85 +703,135 @@ Cleanup completed:
    * Start notification polling
    * @param {string} sessionId - Current session ID
    * @param {Function} callback - Callback for new notifications
-   * @returns {Object} Poll start action
+   * @returns {Object} Poll start result
    */
-  startPolling(sessionId, callback) {
+  startPolling(sessionId, callback = null) {
+    // Stop any existing timer
+    this.stopPolling();
+
+    // Start new poll timer
+    this.pollTimer = setInterval(() => {
+      const result = this.pollNotifications(sessionId);
+      if (callback && result.notifications && result.notifications.length > 0) {
+        callback(result.notifications);
+      }
+    }, this.config.pollInterval);
+
     return {
-      action: 'start_polling',
+      started: true,
       sessionId: sessionId,
       interval: this.config.pollInterval,
-      description: `Poll for notifications every ${this.config.pollInterval / 1000} seconds`,
-      onPoll: this.pollNotifications(sessionId)
+      message: `Polling started (every ${this.config.pollInterval / 1000} seconds)`
     };
   }
 
   /**
    * Stop notification polling
-   * @returns {Object} Poll stop action
+   * @returns {Object} Poll stop result
    */
   stopPolling() {
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+
+      return {
+        stopped: true,
+        message: 'Notification polling stopped'
+      };
+    }
+
     return {
-      action: 'stop_polling',
-      description: 'Stop notification polling'
+      stopped: false,
+      message: 'No polling timer was running'
     };
   }
 
   /**
    * Get notification configuration
-   * @returns {Object} Config action
+   * @returns {Object} Config result
    */
   getConfig() {
     const configPath = this.getPaths().config;
 
-    return {
-      action: 'get_notification_config',
-      configPath: configPath,
-      defaultConfig: {
-        enableOSNotifications: this.config.enableOSNotifications,
-        pollInterval: this.config.pollInterval,
-        defaultExpiry: this.config.defaultExpiry,
-        soundEnabled: false,
-        priorityFilter: ['high', 'normal', 'low']
-      },
-      command: `cat "${configPath}" 2>/dev/null || echo '{}'`
+    const defaultConfig = {
+      enableOSNotifications: this.config.enableOSNotifications,
+      pollInterval: this.config.pollInterval,
+      defaultExpiry: this.config.defaultExpiry,
+      soundEnabled: false,
+      priorityFilter: ['high', 'normal', 'low']
     };
+
+    try {
+      if (fs.existsSync(configPath)) {
+        const content = fs.readFileSync(configPath, 'utf8');
+        const savedConfig = JSON.parse(content);
+        return {
+          config: { ...defaultConfig, ...savedConfig },
+          configPath: configPath,
+          message: 'Configuration loaded'
+        };
+      }
+
+      return {
+        config: defaultConfig,
+        configPath: configPath,
+        isDefault: true,
+        message: 'Using default configuration'
+      };
+    } catch (error) {
+      return {
+        config: defaultConfig,
+        configPath: configPath,
+        error: error.message,
+        message: `Using default configuration (error: ${error.message})`
+      };
+    }
   }
 
   /**
    * Update notification configuration
    * @param {Object} updates - Configuration updates
-   * @returns {Object} Config update action
+   * @returns {Object} Config update result
    */
   updateConfig(updates) {
     const configPath = this.getPaths().config;
 
-    return {
-      action: 'update_notification_config',
-      configPath: configPath,
-      updates: updates,
-      steps: [
-        {
-          step: 1,
-          description: 'Ensure notifications directory exists',
-          command: `mkdir -p "$(dirname "${configPath}")"`
-        },
-        {
-          step: 2,
-          description: 'Read existing config or create default',
-          command: `cat "${configPath}" 2>/dev/null || echo '{}'`
-        },
-        {
-          step: 3,
-          description: 'Merge updates',
-          action: 'deep_merge'
-        },
-        {
-          step: 4,
-          description: 'Write updated config',
-          command_template: `echo '{{config_json}}' > "${configPath}"`
-        }
-      ]
-    };
+    try {
+      // Ensure notifications directory exists
+      const configDir = path.dirname(configPath);
+      if (!fs.existsSync(configDir)) {
+        fs.mkdirSync(configDir, { recursive: true });
+      }
+
+      // Read existing config or create default
+      let existingConfig = {};
+      if (fs.existsSync(configPath)) {
+        const content = fs.readFileSync(configPath, 'utf8');
+        existingConfig = JSON.parse(content);
+      }
+
+      // Merge updates
+      const newConfig = { ...existingConfig, ...updates };
+
+      // Write updated config
+      fs.writeFileSync(configPath, JSON.stringify(newConfig, null, 2), 'utf8');
+
+      // Apply to current instance
+      Object.assign(this.config, updates);
+
+      return {
+        updated: true,
+        config: newConfig,
+        configPath: configPath,
+        message: 'Configuration updated'
+      };
+    } catch (error) {
+      return {
+        updated: false,
+        error: error.message,
+        message: `Failed to update configuration: ${error.message}`
+      };
+    }
   }
 }
 
