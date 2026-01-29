@@ -2,38 +2,34 @@
   "name": "maestro-plugins",
   "owner": {
     "name": "Maestro Team",
-    "email": "team@wamoscode.com",
-    "url": "https://github.com/wamoscode/maestro-plugin"
+    "email": "team@wamoscode.com"
+  },
+  "metadata": {
+    "description": "Official Maestro plugin marketplace for Claude Code",
+    "version": "1.8.0"
   },
   "plugins": [
     {
       "name": "maestro",
+      "source": {
+        "source": "github",
+        "repo": "wamoscode/maestro-plugin"
+      },
+      "description": "Master orchestrator with Context-Driven Development, multi-branch parallel sessions, platform sync, multi-project workspaces, and 40+ specialized sub-agents",
       "version": "1.8.0",
-      "description": "Master orchestrator with Context-Driven Development, multi-branch parallel sessions, platform sync, multi-project workspaces, git submodule support, and 40+ specialized sub-agents",
+      "author": {
+        "name": "Maestro Team"
+      },
       "license": "MIT",
-      "repository": "https://github.com/wamoscode/maestro-plugin",
-      "homepage": "https://github.com/wamoscode/maestro-plugin",
       "keywords": [
         "orchestrator",
         "multi-agent",
         "subagents",
-        "automation",
+        "context-driven-development",
         "workflow",
-        "mcp",
-        "context-driven",
-        "multi-project",
-        "workspace",
-        "git-submodules",
-        "tdd",
-        "platform-sync",
-        "jira",
-        "linear",
-        "asana",
-        "multi-branch",
-        "parallel-sessions",
-        "session-locking"
+        "automation"
       ],
-      "source": "./maestro-plugin"
+      "category": "productivity"
     }
   ]
 }
