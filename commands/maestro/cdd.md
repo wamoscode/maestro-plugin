@@ -9,6 +9,13 @@ aliases: [context, cdd-mode]
 
 Activate Context-Driven Development (CDD) mode for your current session. This command loads all project context and primes Claude to work with structured tracks, specifications, plans, and checkpoints.
 
+**NEW in v1.8: Multi-Branch Session Support**
+- Automatically detects current git branch
+- Acquires session lock (one session per branch)
+- Loads branch-specific context and tracks
+- Starts notification polling for cross-session alerts
+- Supports parallel work on different branches
+
 ## CRITICAL: Mandatory Sub-Agent Usage in CDD Mode
 
 **When CDD mode is active, ALL tasks MUST be processed through sub-agents via the Task tool.**
@@ -220,6 +227,10 @@ Would you like me to:
 - `/maestro:stash` - Pause/resume tracks without reverting
 - `/maestro:quick` - Fast shortcuts for common actions
 
+### New in v1.8: Multi-Branch Sessions
+- `/maestro:branch` - Manage CDD context across git branches
+- `/maestro:session` - Manage sessions, locks, and notifications
+
 ## New Features (v1.5)
 
 ### Context Versioning
@@ -271,11 +282,93 @@ Pre-defined templates for common track types:
 - Custom quality gates
 - Agent team compositions
 
+## New Features (v1.8)
+
+### Multi-Branch Parallel Sessions
+Multiple Claude Code sessions can work simultaneously on different branches:
+- **Branch Isolation**: Each branch maintains its own tracks and context
+- **Session Locking**: One session per branch, prevents conflicts
+- **Cross-Session Notifications**: Get alerted when other sessions need input
+- **Context Persistence**: Session state survives branch switches
+
+### Branch-Aware Context Structure
+When `maestro/` is gitignored (recommended for multi-branch):
+
+```
+maestro/
+├── shared/                    # Shared across all branches (read-only)
+│   ├── product.md
+│   ├── tech-stack.md
+│   └── workflow.md
+├── branches/                  # Branch-specific context
+│   ├── main/
+│   │   ├── context.json
+│   │   ├── tracks/
+│   │   └── active-session.lock
+│   └── feature--auth/
+│       └── ...
+├── sessions/                  # Session registry
+│   └── registry.json
+└── notifications/             # Cross-session notifications
+    ├── pending/
+    └── archive/
+```
+
+### Session Lock Behavior
+- Lock acquired on CDD activation
+- Heartbeat every 30 seconds
+- Stale after 5 minutes without heartbeat
+- Other sessions blocked with clear warning
+
+### Notification System
+Sessions can notify each other about:
+- Input required (checkpoint approval)
+- Errors encountered
+- Track completion
+- Custom messages
+
 ---
 
 ## CDD Activation Protocol
 
 When this command is invoked, follow this protocol:
+
+### Step 0: Branch Detection and Session Lock (NEW in v1.8)
+
+```
+1. DETECT current git branch:
+   - Run: git branch --show-current
+   - Fallback: git rev-parse --abbrev-ref HEAD
+   - Handle detached HEAD: prefix with "detached-"
+
+2. CHECK for existing session lock on this branch:
+   - Read: maestro/branches/{branch}/active-session.lock
+   - If lock exists AND not stale (heartbeat < 5 min):
+     * BLOCK with warning message
+     * Show lock holder info
+     * Suggest alternatives:
+       - Switch to different branch
+       - Release stale lock
+       - View session details
+     * EXIT protocol
+
+3. ACQUIRE session lock:
+   - Generate session ID
+   - Create lock file with:
+     * sessionId, pid, startedAt
+     * user, host, terminal
+     * lastHeartbeat timestamp
+   - Update session registry
+
+4. START heartbeat timer:
+   - Update lastHeartbeat every 30 seconds
+   - Detect session termination
+
+5. START notification polling:
+   - Poll maestro/notifications/pending/ every 10 seconds
+   - Display banner for high-priority notifications
+   - Trigger OS notification if enabled
+```
 
 ### Step 1: Context Detection
 
@@ -287,23 +380,38 @@ Check for maestro/ directory:
     - Exit protocol
 
   If exists:
+    - Detect context structure (legacy vs branch-aware)
+    - If legacy and multi-branch desired:
+      * Suggest running /maestro:branch migrate
     - Proceed to Step 2
 ```
 
 ### Step 2: Load All Context
 
 ```
-Read and parse the following files:
+DETECT context structure first:
+  - If maestro/shared/ exists → branch-aware mode
+  - If maestro/product.md exists → legacy mode
 
-REQUIRED:
+BRANCH-AWARE MODE (v1.8+):
+  Shared context (read-only):
+    - maestro/shared/product.md → Extract product name, vision, goals
+    - maestro/shared/tech-stack.md → Extract technologies
+    - maestro/shared/workflow.md → Extract methodology, quality standards
+    - maestro/shared/product-guidelines.md → Extract principles
+    - maestro/shared/code-styleguide.md → Note style guide presence
+
+  Branch-specific context:
+    - maestro/branches/{branch}/context.json → Branch state
+    - maestro/branches/{branch}/tracks.md → Branch track index
+
+LEGACY MODE:
   - maestro/product.md → Extract product name, vision, goals
   - maestro/tech-stack.md → Extract technologies
   - maestro/workflow.md → Extract methodology, quality standards
   - maestro/tracks.md → Get track index
 
-OPTIONAL (if they exist):
-  - maestro/product-guidelines.md → Extract principles
-  - maestro/code-styleguide.md → Note style guide presence
+OPTIONAL (both modes):
   - maestro/workspace.json → Check if workspace mode
   - maestro/setup_state.json → Check setup completion
 ```
@@ -311,15 +419,25 @@ OPTIONAL (if they exist):
 ### Step 3: Load Active Tracks
 
 ```
-From tracks.md:
-  1. Parse track list
-  2. For each track with status != completed:
-     - Read maestro/tracks/{track-id}/metadata.json
-     - Read maestro/tracks/{track-id}/spec.md (brief summary)
-     - Read maestro/tracks/{track-id}/plan.md (current phase/task)
+BRANCH-AWARE MODE:
+  From maestro/branches/{branch}/tracks.md:
+    1. Parse track list
+    2. For each track with status != completed:
+       - Read maestro/branches/{branch}/tracks/{track-id}/metadata.json
+       - Read maestro/branches/{branch}/tracks/{track-id}/spec.md
+       - Read maestro/branches/{branch}/tracks/{track-id}/plan.md
+    3. Identify most recent active track
+    4. Update branch context with active track
 
-  3. Identify most recent active track
-  4. Identify current task in progress
+LEGACY MODE:
+  From maestro/tracks.md:
+    1. Parse track list
+    2. For each track with status != completed:
+       - Read maestro/tracks/{track-id}/metadata.json
+       - Read maestro/tracks/{track-id}/spec.md
+       - Read maestro/tracks/{track-id}/plan.md
+    3. Identify most recent active track
+    4. Identify current task in progress
 ```
 
 ### Step 4: Workspace Check (Multi-Project)
@@ -336,11 +454,50 @@ If maestro/workspace.json exists:
 
 ```
 Format and display:
-  1. Project context summary
-  2. Active tracks table (sorted by priority)
-  3. Current focus (active task)
-  4. CDD principles reminder
-  5. Ready prompt
+  1. Session info (NEW in v1.8):
+     - Session ID
+     - Current branch
+     - Lock status
+  2. Project context summary
+  3. Active tracks table (sorted by priority)
+  4. Current focus (active task)
+  5. Other active sessions (NEW in v1.8):
+     - List other branches with active sessions
+     - Show pending notifications
+  6. CDD principles reminder
+  7. Ready prompt
+```
+
+**Example Output with Multi-Branch Info:**
+
+```markdown
+## CDD Mode Activated
+
+### Session Info
+- **Session ID**: session-abc123
+- **Branch**: main
+- **Lock**: Acquired
+
+### Project Context Loaded
+- **Product**: My Application
+- **Tech Stack**: React, Node.js, PostgreSQL
+- **Workflow**: TDD (Test-Driven Development)
+
+### Active Tracks (branch: main)
+| ID | Title | Status | Progress |
+|----|-------|--------|----------|
+| TRACK-001 | User Auth | active | 60% |
+
+### Other Active Sessions
+| Branch | Session | Track | Last Activity |
+|--------|---------|-------|---------------|
+| feature/auth | session-def456 | TRACK-002 | 5 min ago |
+
+### Pending Notifications (1)
+🔔 Session on 'feature/auth' requires input
+   "Approve Phase 2 checkpoint for TRACK-002"
+
+Ready for CDD workflow. What would you like to work on?
 ```
 
 ### Step 6: Set CDD Mode State
@@ -349,13 +506,14 @@ Format and display:
 For the remainder of this session:
   1. After EVERY significant discussion:
      - Identify if context update needed
-     - Update appropriate file
+     - Update appropriate file (branch-specific in v1.8)
      - Confirm update to user
 
   2. Track-related work:
      - Reference active track
      - Follow workflow methodology
      - Maintain task/phase structure
+     - Tracks are branch-specific (v1.8)
 
   3. Code generation:
      - Follow code-styleguide.md
@@ -372,6 +530,37 @@ For the remainder of this session:
      - Select agents based on task analysis
      - Use teams for complex/multi-domain tasks
      - Leverage tech stack for specialist selection
+
+  6. Session management (NEW in v1.8):
+     - Maintain heartbeat (every 30s)
+     - Poll for notifications (every 10s)
+     - Fire notification when user input needed
+     - Release lock on session end
+```
+
+### Step 6.5: Notification Triggers (NEW in v1.8)
+
+```
+Fire notification to other sessions when:
+  1. INPUT_REQUIRED:
+     - Checkpoint approval needed
+     - User decision required
+     - Blocker encountered
+
+  2. ERROR:
+     - Unrecoverable error during implementation
+     - Track execution failed
+
+  3. TRACK_COMPLETED:
+     - Track reaches 100% completion
+
+  4. BLOCKED:
+     - Track encounters external blocker
+
+Notification delivery:
+  - Write to maestro/notifications/pending/
+  - Include: sessionId, branch, type, priority, message, action
+  - OS notification for high priority (if enabled)
 ```
 
 ### Step 7: Sub-Agent Routing Protocol

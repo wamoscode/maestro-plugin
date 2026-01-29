@@ -1,0 +1,38 @@
+{
+  "version": "1.0.0",
+  "createdAt": "{{CREATED_TIMESTAMP}}",
+  "lastUpdated": "{{LAST_UPDATED_TIMESTAMP}}",
+
+  "sessions": {
+    "{{SESSION_ID}}": {
+      "sessionId": "{{SESSION_ID}}",
+      "branch": "{{BRANCH_NAME}}",
+      "startedAt": "{{STARTED_TIMESTAMP}}",
+      "lastActivity": "{{LAST_ACTIVITY_TIMESTAMP}}",
+      "activeTrack": null,
+      "status": "active",
+      "metadata": {
+        "user": "{{USERNAME}}",
+        "host": "{{HOSTNAME}}",
+        "terminal": "{{TERMINAL}}",
+        "pid": "{{PID}}",
+        "cwd": "{{CWD}}"
+      }
+    }
+  },
+
+  "statistics": {
+    "totalSessionsCreated": 0,
+    "currentActiveSessions": 0,
+    "peakConcurrentSessions": 0,
+    "lastCleanup": null,
+    "staleSessions Removed": 0
+  },
+
+  "config": {
+    "staleLockThreshold": 300000,
+    "heartbeatInterval": 30000,
+    "maxConcurrentSessions": 10,
+    "autoCleanupEnabled": true
+  }
+}

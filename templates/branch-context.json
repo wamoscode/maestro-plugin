@@ -1,0 +1,41 @@
+{
+  "branch": "{{BRANCH_NAME}}",
+  "sanitizedName": "{{SANITIZED_BRANCH_NAME}}",
+  "createdAt": "{{CREATED_TIMESTAMP}}",
+  "lastAccessed": "{{LAST_ACCESSED_TIMESTAMP}}",
+  "activeTrack": null,
+  "tracks": [],
+
+  "session": {
+    "lastSessionId": null,
+    "lastSessionStart": null,
+    "lastSessionEnd": null,
+    "totalSessions": 0
+  },
+
+  "sessionHistory": [],
+
+  "settings": {
+    "autoNotify": true,
+    "notifyOnInput": true,
+    "notifyOnError": true,
+    "notifyOnCompletion": true,
+    "defaultPriority": "normal"
+  },
+
+  "statistics": {
+    "tracksCreated": 0,
+    "tracksCompleted": 0,
+    "totalTasks": 0,
+    "tasksCompleted": 0,
+    "timeSpent": 0
+  },
+
+  "relationships": {
+    "parentBranch": null,
+    "childBranches": [],
+    "relatedBranches": []
+  },
+
+  "notes": []
+}

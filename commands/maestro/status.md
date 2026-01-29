@@ -11,6 +11,12 @@ Display the current status of your project or workspace, including all tracks, p
 
 **Multi-Project Support**: In workspaces, view status per-project, across all projects, or for cross-project tracks.
 
+**NEW in v1.8: Multi-Branch Session Support**
+- Shows current session information
+- Displays other branches with active sessions
+- Shows pending notifications from other sessions
+- Tracks are now branch-specific
+
 ## What It Does
 
 1. **Shows project/workspace overview** - Product name, total tracks, overall progress
@@ -43,6 +49,12 @@ Display the current status of your project or workspace, including all tracks, p
 
 # Compact view
 /maestro:status --compact
+
+# Show all branches with sessions (v1.8)
+/maestro:status --sessions
+
+# Show all branches with context (v1.8)
+/maestro:status --branches
 ```
 
 ## Options
@@ -58,6 +70,8 @@ Display the current status of your project or workspace, including all tracks, p
 | `--compact` | Minimal output format |
 | `--verbose` | Show detailed task breakdown |
 | `--json` | Output as JSON |
+| `--sessions` | Show all active sessions (v1.8) |
+| `--branches` | Show all branches with CDD context (v1.8) |
 
 ## Output Formats
 
@@ -71,6 +85,15 @@ Display the current status of your project or workspace, including all tracks, p
 Project: My Application
 Workflow: TDD (Test-Driven Development)
 Last Updated: 2024-01-08 14:32:00
+
+──────────────────────────────────────────────────────────
+  SESSION INFO (v1.8)
+──────────────────────────────────────────────────────────
+
+Session: session-abc123 (active)
+Branch: main *
+Started: 30 minutes ago
+Lock Status: Acquired
 
 ──────────────────────────────────────────────────────────
   SUMMARY
@@ -95,7 +118,7 @@ Current Task:
     Started: 10 minutes ago
 
 ──────────────────────────────────────────────────────────
-  ALL TRACKS
+  ALL TRACKS (branch: main)
 ──────────────────────────────────────────────────────────
 
 │ ID        │ Type    │ Title                  │ Status    │ Progress │
@@ -103,6 +126,23 @@ Current Task:
 │ TRACK-001 │ Chore   │ Project Setup          │ Completed │ 100%     │
 │ TRACK-002 │ Feature │ User Authentication    │ Active    │ 40%      │
 │ TRACK-003 │ Feature │ Dashboard Analytics    │ Pending   │ 0%       │
+
+──────────────────────────────────────────────────────────
+  OTHER ACTIVE SESSIONS (v1.8)
+──────────────────────────────────────────────────────────
+
+│ Branch         │ Session        │ Track      │ Last Activity │
+│────────────────│────────────────│────────────│───────────────│
+│ feature/auth   │ session-def456 │ TRACK-004  │ 5 min ago     │
+│ feature/pay    │ session-ghi789 │ -          │ 12 min ago    │
+
+──────────────────────────────────────────────────────────
+  PENDING NOTIFICATIONS (v1.8)
+──────────────────────────────────────────────────────────
+
+🔔 [HIGH] Session on 'feature/auth' requires input
+   "Approve Phase 2 checkpoint for TRACK-004"
+   Run: /maestro:branch switch feature/auth
 
 ══════════════════════════════════════════════════════════
 ```
@@ -298,6 +338,8 @@ Active: FE-003, BACK-002, CROSS-001/Task-3.2
 - `/maestro:implement` - Continue implementation
 - `/maestro:revert` - Undo track or task
 - `/maestro:workspace sync` - Sync submodules
+- `/maestro:branch` - Manage branches with CDD context (v1.8)
+- `/maestro:session` - Manage sessions and notifications (v1.8)
 
 ---
 
@@ -311,17 +353,52 @@ When this command is invoked, follow this protocol:
 1. Check maestro/ directory exists
    - If not: "No Maestro project found. Run /maestro:setup first."
 
-2. Determine context:
+2. Determine context structure (v1.8):
+   - Check for maestro/branches/ → Branch-aware mode
+   - Check for maestro/shared/ → Branch-aware mode
+   - Else: Legacy mode
+
+3. Determine workspace context:
    - Check for workspace.json → Workspace mode
    - Check for project.json → Project-in-workspace mode
    - Else: Single project mode
 
-3. Check required files based on mode
+4. Check required files based on mode
+```
+
+### Step 0.5: Session Status (v1.8)
+
+```
+1. Get current git branch:
+   - Run: git branch --show-current
+
+2. Check for active session:
+   - Read: maestro/branches/{branch}/active-session.lock
+   - Parse session info (sessionId, startedAt, lastActivity)
+
+3. Read session registry:
+   - Read: maestro/sessions/registry.json
+   - List all active sessions on other branches
+
+4. Check for pending notifications:
+   - List: maestro/notifications/pending/*.json
+   - Filter: exclude own session, exclude expired
+   - Sort: by priority (high first), then by time
 ```
 
 ### Step 1: Read Context
 
-**Single Project:**
+**Branch-Aware Mode (v1.8):**
+```
+1. Read shared context:
+   - maestro/shared/product.md for project name
+   - maestro/shared/workflow.md for workflow type
+2. Read branch-specific context:
+   - maestro/branches/{branch}/context.json
+   - maestro/branches/{branch}/tracks.md for track index
+```
+
+**Legacy Single Project:**
 ```
 1. Read maestro/product.md for project name
 2. Read maestro/workflow.md for workflow type
@@ -423,12 +500,20 @@ Based on options and mode:
 - Cross-project detail view
 - Specific project view
 - Compact view
+- Sessions view (--sessions) (v1.8)
+- Branches view (--branches) (v1.8)
 
 Use visual formatting:
 - Box drawing characters
 - Progress bars
 - Status indicators
 - Color hints (if supported)
+
+**Include in output (v1.8):**
+- Current session info
+- Other active sessions
+- Pending notifications (high priority shown as banner)
+- Branch context mode indicator
 
 ### Error Handling
 

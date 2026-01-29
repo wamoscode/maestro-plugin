@@ -8,6 +8,13 @@
   "updated": "{{UPDATED_TIMESTAMP}}",
   "workflow": "{{WORKFLOW_TYPE}}",
 
+  "branch": {
+    "name": "{{BRANCH_NAME}}",
+    "sanitizedName": "{{SANITIZED_BRANCH_NAME}}",
+    "createdOnBranch": "{{CREATED_ON_BRANCH}}",
+    "copiedFrom": null
+  },
+
   "hierarchy": {
     "parent": null,
     "children": [],
