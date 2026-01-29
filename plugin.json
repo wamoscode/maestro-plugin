@@ -1,6 +1,6 @@
 {
   "name": "maestro",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "description": "Master orchestrator plugin with Context-Driven Development methodology, multi-branch parallel sessions, multi-project workspaces, platform sync, git submodule support, 40+ specialized sub-agents, context versioning, quality gates, and intelligent project management",
   "main": "mcp/server.js",
   "author": {
