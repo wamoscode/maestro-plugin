@@ -1,7 +1,7 @@
 {
   "name": "maestro-plugin",
-  "version": "1.7.0",
-  "description": "Master orchestrator plugin with Context-Driven Development, platform sync, multi-project workspaces, git submodule support, 40+ specialized sub-agents, and intelligent context management",
+  "version": "1.8.0",
+  "description": "Master orchestrator plugin with Context-Driven Development, multi-branch parallel sessions, platform sync, multi-project workspaces, git submodule support, 40+ specialized sub-agents, and intelligent context management",
   "main": "mcp/server.js",
   "scripts": {
     "start": "node mcp/server.js",
@@ -33,7 +33,11 @@
     "asana",
     "clickup",
     "todoist",
-    "youtrack"
+    "youtrack",
+    "multi-branch",
+    "parallel-sessions",
+    "branch-isolation",
+    "session-locking"
   ],
   "author": {
     "name": "Maestro Team",

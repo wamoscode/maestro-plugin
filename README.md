@@ -1,12 +1,14 @@
 # Maestro Plugin for Claude Code
 
-A comprehensive orchestration plugin that bundles 40+ specialized sub-agents for intelligent task routing and multi-agent collaboration in Claude Code. Now with **Context-Driven Development** methodology and **Platform Sync** for external project management integration.
+A comprehensive orchestration plugin that bundles 40+ specialized sub-agents for intelligent task routing and multi-agent collaboration in Claude Code. Now with **Context-Driven Development** methodology, **Multi-Branch Parallel Sessions**, and **Platform Sync** for external project management integration.
 
 ## Overview
 
 Maestro acts as a master orchestrator—like a skilled conductor leading an orchestra—analyzing user tasks, determining the optimal sub-agent(s) to invoke, coordinating their execution (parallel or sequential), and synthesizing their results into cohesive deliverables.
 
-**New in v1.6**: Platform Sync for bidirectional synchronization with ClickUp, Linear, Jira, Asana, Todoist, YouTrack, and more via API or MCP.
+**New in v1.8**: Multi-Branch Parallel Sessions - multiple Claude Code instances can work simultaneously on different git branches with proper isolation, session locking, and cross-session notifications.
+
+**v1.6**: Platform Sync for bidirectional synchronization with ClickUp, Linear, Jira, Asana, Todoist, YouTrack, and more via API or MCP.
 
 **v1.5**: Enhanced CDD with context versioning, quality gates, impact analysis, track archetypes, and knowledge capture.
 
@@ -21,6 +23,10 @@ Maestro acts as a master orchestrator—like a skilled conductor leading an orch
 - **Parallel Execution**: Run independent agents simultaneously for faster results
 - **Workflow Orchestration**: Define complex multi-step workflows with dependencies
 - **Context-Driven Development**: Structured tracks with specs, plans, and checkpoints
+- **Multi-Branch Parallel Sessions**: Multiple Claude instances working on different branches simultaneously
+- **Branch Isolation**: Each branch maintains its own tracks and context state
+- **Session Locking**: Prevents concurrent modifications with clear conflict warnings
+- **Cross-Session Notifications**: Get alerted when other sessions need attention
 - **Platform Sync**: Bidirectional sync with ClickUp, Linear, Jira, Asana, Todoist, YouTrack
 - **Multi-Project Workspaces**: Manage multiple repositories as a unified workspace
 - **Git Submodule Support**: First-class handling of submodules with parent reference tracking
@@ -85,6 +91,21 @@ For quick, untracked tasks:
 | `/maestro:impact` | Analyze change impact and blast radius |
 | `/maestro:stash` | Pause/resume tracks without reverting |
 | `/maestro:quick` | Fast shortcuts for common CDD actions |
+
+### Multi-Branch Session Commands (v1.8)
+
+| Command | Description |
+|---------|-------------|
+| `/maestro:branch` | Manage CDD context across git branches |
+| `/maestro:branch list` | List all branches with CDD context |
+| `/maestro:branch switch <branch>` | Switch to a branch with context preservation |
+| `/maestro:branch status` | Show current branch's CDD status |
+| `/maestro:branch migrate` | Migrate legacy context to branch-aware structure |
+| `/maestro:session` | Manage sessions, locks, and notifications |
+| `/maestro:session list` | Show all active sessions across branches |
+| `/maestro:session release <branch>` | Release a stale session lock |
+| `/maestro:session notifications` | View/manage cross-session notifications |
+| `/maestro:session notify <branch> <msg>` | Send notification to another session |
 
 ### Multi-Project Commands
 
@@ -251,6 +272,204 @@ Each task in a track:
 - Follows your chosen workflow
 - Records commit SHAs
 - Supports phase checkpoints
+
+## Multi-Branch Parallel Sessions (v1.8)
+
+Enable multiple Claude Code sessions to work **simultaneously** on different git branches with proper isolation and coordination.
+
+### Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Git Repository                                │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌──────────────────┐    ┌──────────────────┐                   │
+│  │ Claude Session 1 │    │ Claude Session 2 │                   │
+│  │ (Terminal 1)     │    │ (Terminal 2)     │                   │
+│  └────────┬─────────┘    └────────┬─────────┘                   │
+│           │                       │                              │
+│           ▼                       ▼                              │
+│  ┌──────────────────┐    ┌──────────────────┐                   │
+│  │ Branch: main     │    │ Branch: feature/ │                   │
+│  │ Lock: session-1  │    │ Lock: session-2  │                   │
+│  │ Track: TRACK-001 │    │ Track: TRACK-002 │                   │
+│  └──────────────────┘    └──────────────────┘                   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Quick Start
+
+```bash
+# Terminal 1: Work on main branch
+git checkout main
+/maestro:cdd
+# Session started on branch 'main', lock acquired
+
+# Terminal 2: Work on feature branch simultaneously
+git checkout feature/auth
+/maestro:cdd
+# Session started on branch 'feature/auth', lock acquired
+
+# Both sessions work independently with isolated contexts
+```
+
+### Key Features
+
+#### Branch Isolation
+
+Each branch maintains its own:
+- Track list and track data
+- Active track state
+- Session history
+- Branch-specific settings
+
+#### Session Locking
+
+When you activate CDD on a branch:
+- A session lock is acquired
+- Other sessions are blocked from that branch
+- Lock includes heartbeat (stale after 5 min without activity)
+- Lock is released when session ends
+
+```bash
+# If you try to access a locked branch:
+⚠️  Branch 'feature/auth' is locked by another session
+
+   Session ID: session-abc123
+   Started: 10 minutes ago
+   Last Activity: 2 minutes ago
+
+   Options:
+   1. Switch to a different branch: /maestro:branch switch <other-branch>
+   2. View session details: /maestro:session info session-abc123
+   3. Release stale lock: /maestro:session release feature/auth --force
+```
+
+#### Cross-Session Notifications
+
+Sessions can notify each other about important events:
+
+```bash
+# View pending notifications
+/maestro:session notifications
+
+# Send notification to another session
+/maestro:session notify feature/auth "Need review on auth changes"
+
+# Automatic notifications fire when:
+# - User input is required (checkpoint approval)
+# - Errors are encountered
+# - Tracks are completed
+```
+
+**Notification Banner (displayed automatically):**
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 🔔 Session on 'feature/auth' requires attention             │
+│    "Track TRACK-002 needs approval to proceed with Phase 2" │
+│    Run: /maestro:branch switch feature/auth                 │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Branch-Aware Context Structure
+
+When using multi-branch sessions (recommended: add `maestro/` to `.gitignore`):
+
+```
+maestro/
+├── shared/                    # Shared across all branches (read-only)
+│   ├── product.md
+│   ├── tech-stack.md
+│   └── workflow.md
+├── branches/                  # Branch-specific context
+│   ├── main/
+│   │   ├── context.json      # Branch state
+│   │   ├── tracks/           # Branch tracks
+│   │   │   └── TRACK-001/
+│   │   └── active-session.lock
+│   └── feature--auth/
+│       ├── context.json
+│       ├── tracks/
+│       │   └── TRACK-002/
+│       └── active-session.lock
+├── sessions/                  # Session registry
+│   └── registry.json
+└── notifications/             # Cross-session notifications
+    ├── pending/
+    └── archive/
+```
+
+### Migration from Legacy Structure
+
+If you have an existing project without branch support:
+
+```bash
+/maestro:branch migrate
+```
+
+This will:
+1. Create `maestro/shared/` for shared context files
+2. Move existing tracks to `maestro/branches/{current-branch}/`
+3. Set up session management directories
+4. Preserve all existing data
+
+### Branch Commands
+
+```bash
+# List branches with CDD context
+/maestro:branch list
+
+# Initialize context for current branch
+/maestro:branch init
+
+# Switch to a branch with context handling
+/maestro:branch switch feature/auth
+
+# View current branch status
+/maestro:branch status
+
+# List tracks on current branch
+/maestro:branch tracks
+
+# Delete context for a branch
+/maestro:branch delete feature/old-feature
+```
+
+### Session Commands
+
+```bash
+# List all active sessions
+/maestro:session list
+
+# Get detailed session info
+/maestro:session info session-abc123
+
+# Release a stuck/stale lock
+/maestro:session release feature/auth --force
+
+# Cleanup all stale sessions
+/maestro:session cleanup
+
+# View/clear notifications
+/maestro:session notifications
+/maestro:session notifications --clear
+
+# Send notification to branch
+/maestro:session notify feature/auth "Message here"
+
+# Configure notifications (enable OS notifications)
+/maestro:session config --enable-os-notifications
+```
+
+### Gitignore-Aware Mode
+
+When `maestro/` is gitignored:
+- Context persists across `git checkout` operations
+- Branch is detected via `git branch --show-current`
+- Context is loaded based on detected branch
+- Session state survives branch switches
+
+This is the **recommended mode** for multi-branch development.
 
 ## Multi-Project Workspaces
 
@@ -716,7 +935,9 @@ maestro-plugin/
 │   │   ├── dashboard.md    # Progress dashboard
 │   │   ├── impact.md       # Impact analysis
 │   │   ├── stash.md        # Track stashing
-│   │   └── quick.md        # Quick actions
+│   │   ├── quick.md        # Quick actions
+│   │   ├── branch.md       # Branch management (v1.8)
+│   │   └── session.md      # Session management (v1.8)
 │   ├── workflow.md         # Workflow orchestration
 │   ├── list-subagents.md   # Agent browser
 │   ├── agent-info.md       # Agent details
@@ -727,6 +948,9 @@ maestro-plugin/
 │   ├── workflow-minimal.md # Minimal tracking
 │   ├── sync-config.json    # Platform sync configuration
 │   ├── tracks.md           # Track index template
+│   ├── branch-context.json # Branch context template (v1.8)
+│   ├── session-registry.json # Session registry template (v1.8)
+│   ├── notification.json   # Notification template (v1.8)
 │   ├── archetypes/         # Track archetypes
 │   │   ├── api-endpoint.md
 │   │   ├── auth-feature.md
@@ -739,7 +963,7 @@ maestro-plugin/
 │   └── track/              # Track templates
 │       ├── spec.md
 │       ├── plan.md
-│       └── metadata.json
+│       └── metadata.json   # Now includes branch field (v1.8)
 ├── subagents/              # Agent definitions (42 agents)
 │   ├── maestro.md          # Main orchestrator
 │   ├── registry.json       # Agent registry
@@ -749,6 +973,9 @@ maestro-plugin/
 │   ├── platform-sync/      # Platform sync adapters
 │   │   ├── sync-engine.js
 │   │   └── adapters/       # Platform-specific adapters
+│   ├── branch-session-manager.js  # Session/lock management (v1.8)
+│   ├── branch-context.js   # Branch context management (v1.8)
+│   ├── session-notifications.js   # Cross-session notifications (v1.8)
 │   ├── context-versioning.js
 │   ├── quality-gates.js
 │   ├── impact-analysis.js

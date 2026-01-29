@@ -1,0 +1,30 @@
+{
+  "id": "{{NOTIFICATION_ID}}",
+  "sessionId": "{{SOURCE_SESSION_ID}}",
+  "branch": "{{SOURCE_BRANCH}}",
+
+  "type": "{{TYPE}}",
+  "priority": "{{PRIORITY}}",
+
+  "title": "{{TITLE}}",
+  "message": "{{MESSAGE}}",
+
+  "action": {
+    "command": "{{ACTION_COMMAND}}",
+    "description": "{{ACTION_DESCRIPTION}}"
+  },
+
+  "createdAt": "{{CREATED_TIMESTAMP}}",
+  "expiresAt": "{{EXPIRES_TIMESTAMP}}",
+
+  "read": false,
+  "readBy": [],
+  "readAt": null,
+
+  "metadata": {
+    "trackId": null,
+    "taskId": null,
+    "phase": null,
+    "errorCode": null
+  }
+}
