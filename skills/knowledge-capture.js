@@ -506,6 +506,496 @@ ${retro.recommendations.map((rec, i) => `${i + 1}. ${rec}`).join('\n') || 'None'
 
     return recommendations;
   }
+
+  // ============================================
+  // Real-time Capture Methods
+  // ============================================
+
+  /**
+   * Capture a decision in real-time during execution
+   * @param {Object} decision - Decision data from agent execution
+   * @returns {Object} Captured decision with metadata
+   */
+  captureDecisionRealtime(decision) {
+    const timestamp = new Date().toISOString();
+
+    const captured = {
+      id: this.generateRealtimeId('dec'),
+      type: 'decision',
+      timestamp: timestamp,
+      title: decision.title || decision.summary,
+      summary: decision.summary || decision.title,
+      content: {
+        choice: decision.choice || decision.decision,
+        rationale: decision.rationale,
+        alternatives: decision.alternatives || [],
+        consequences: decision.consequences || [],
+        tradeoffs: decision.tradeoffs || null,
+        reversible: decision.reversible !== false
+      },
+      context: {
+        trackId: decision.trackId,
+        taskId: decision.taskId,
+        phase: decision.phase,
+        agentId: decision.agentId,
+        branch: decision.branch
+      },
+      domain: decision.domain || this.inferDomainFromDecision(decision),
+      tags: decision.tags || this.extractTagsFromDecision(decision),
+      confidence: decision.confidence || 0.7,
+      importance: decision.importance || 'normal',
+      metadata: {
+        createdAt: timestamp,
+        source: 'realtime',
+        autoExtracted: decision.autoExtracted || false,
+        agentOutput: decision.agentOutput ? true : false
+      }
+    };
+
+    // Add to in-memory collection for session
+    this.decisions.push(captured);
+
+    return {
+      success: true,
+      decision: captured,
+      message: `Decision captured: ${captured.title}`
+    };
+  }
+
+  /**
+   * Capture research findings in real-time
+   * @param {Object} research - Research data from exploration/investigation
+   * @returns {Object} Captured research with metadata
+   */
+  captureResearch(research) {
+    const timestamp = new Date().toISOString();
+
+    const captured = {
+      id: this.generateRealtimeId('res'),
+      type: 'research',
+      timestamp: timestamp,
+      title: research.title || research.finding,
+      summary: research.finding || research.summary,
+      content: {
+        finding: research.finding,
+        context: research.context,
+        sources: research.sources || [],
+        evidence: research.evidence || null,
+        applicability: research.applicability || null,
+        limitations: research.limitations || [],
+        followUp: research.followUp || [],
+        verified: research.verified || false
+      },
+      context: {
+        trackId: research.trackId,
+        taskId: research.taskId,
+        phase: research.phase,
+        agentId: research.agentId,
+        branch: research.branch
+      },
+      domain: research.domain || this.inferDomainFromText(research.finding),
+      tags: research.tags || this.extractTagsFromText(research.finding),
+      confidence: research.confidence || 0.6,
+      importance: research.importance || 'normal',
+      metadata: {
+        createdAt: timestamp,
+        source: 'exploration',
+        searchTerms: research.searchTerms || []
+      }
+    };
+
+    return {
+      success: true,
+      research: captured,
+      message: `Research captured: ${captured.title}`
+    };
+  }
+
+  /**
+   * Extract learnings from a completed phase
+   * @param {Object} phase - Completed phase data
+   * @param {Object} track - Track context
+   * @returns {Object} Extracted phase learnings
+   */
+  extractPhaseLearnings(phase, track) {
+    const learnings = {
+      phaseNumber: phase.number || phase.id,
+      phaseName: phase.name || phase.title,
+      trackId: track.id,
+      extractedAt: new Date().toISOString(),
+      decisions: [],
+      patterns: [],
+      insights: [],
+      blockers: []
+    };
+
+    // Extract decisions from phase tasks
+    if (phase.tasks) {
+      for (const task of phase.tasks) {
+        if (task.decisions && task.decisions.length > 0) {
+          learnings.decisions.push(...task.decisions);
+        }
+
+        // Look for decision indicators in task notes
+        if (task.notes) {
+          const extractedDecisions = this.extractDecisionsFromNotes(task.notes, task);
+          learnings.decisions.push(...extractedDecisions);
+        }
+      }
+    }
+
+    // Extract patterns from implementation approach
+    if (phase.implementation) {
+      const patterns = this.detectPatternsInPhase(phase);
+      learnings.patterns.push(...patterns);
+    }
+
+    // Extract insights from phase completion
+    if (phase.summary || phase.notes) {
+      const insights = this.extractInsightsFromText(phase.summary || phase.notes);
+      learnings.insights.push(...insights);
+    }
+
+    // Collect blocker resolutions
+    if (phase.blockers) {
+      learnings.blockers = phase.blockers.map(b => ({
+        issue: b.issue || b.description,
+        resolution: b.resolution,
+        preventionStrategy: b.preventionStrategy || null,
+        timeSpent: b.timeSpent || null
+      }));
+    }
+
+    // Generate phase learning summary
+    learnings.summary = {
+      decisionsCount: learnings.decisions.length,
+      patternsCount: learnings.patterns.length,
+      insightsCount: learnings.insights.length,
+      blockersResolved: learnings.blockers.filter(b => b.resolution).length,
+      keyLearnings: this.extractKeyLearnings(learnings)
+    };
+
+    return {
+      success: true,
+      learnings: learnings,
+      message: `Extracted ${learnings.summary.decisionsCount} decisions, ${learnings.summary.patternsCount} patterns from phase ${learnings.phaseNumber}`
+    };
+  }
+
+  /**
+   * Create retrospective with journal data
+   * @param {Object} track - Completed track
+   * @param {Object} journalData - Session journal data
+   * @param {Object} feedback - Optional user feedback
+   * @returns {Object} Enhanced retrospective
+   */
+  createRetrospectiveWithJournal(track, journalData, feedback = {}) {
+    // Create base retrospective
+    const baseRetro = this.createRetrospective(track, feedback);
+
+    // Enhance with journal data
+    if (journalData && journalData.entries) {
+      // Add journal-sourced decisions
+      const journalDecisions = journalData.entries
+        .filter(e => e.type === 'decision')
+        .map(e => e.summary || e.title);
+
+      if (!baseRetro.retrospective.decisions) {
+        baseRetro.retrospective.decisions = [];
+      }
+      baseRetro.retrospective.decisions.push(...journalDecisions);
+
+      // Add journal-sourced discoveries
+      const discoveries = journalData.entries
+        .filter(e => e.type === 'discovery')
+        .map(e => e.summary || e.insight);
+
+      baseRetro.retrospective.discoveries = discoveries;
+
+      // Add resolved blockers from journal
+      const resolvedBlockers = journalData.entries
+        .filter(e => e.type === 'blocker' && e.details?.resolved)
+        .map(e => ({
+          issue: e.summary,
+          resolution: e.details.resolution,
+          preventionStrategy: e.details.preventionStrategy
+        }));
+
+      baseRetro.retrospective.resolvedBlockers = resolvedBlockers;
+
+      // Add journal summary
+      baseRetro.retrospective.journalSummary = journalData.summary || {
+        entriesCount: journalData.entries.length,
+        decisionsCount: journalDecisions.length,
+        discoveriesCount: discoveries.length
+      };
+    }
+
+    // Update markdown content
+    baseRetro.content = this.formatEnhancedRetrospectiveMarkdown(baseRetro.retrospective);
+
+    return baseRetro;
+  }
+
+  // ============================================
+  // Helper Methods for Real-time Capture
+  // ============================================
+
+  /**
+   * Generate a real-time capture ID
+   * @param {string} prefix - ID prefix
+   * @returns {string} Unique ID
+   */
+  generateRealtimeId(prefix) {
+    const timestamp = Date.now().toString(36);
+    const random = Math.random().toString(36).substr(2, 6);
+    return `${prefix}_${timestamp}_${random}`;
+  }
+
+  /**
+   * Infer domain from decision content
+   * @param {Object} decision - Decision data
+   * @returns {string|null} Inferred domain
+   */
+  inferDomainFromDecision(decision) {
+    const text = `${decision.title || ''} ${decision.rationale || ''} ${decision.choice || ''}`.toLowerCase();
+    return this.inferDomainFromText(text);
+  }
+
+  /**
+   * Infer domain from text content
+   * @param {string} text - Text to analyze
+   * @returns {string|null} Inferred domain
+   */
+  inferDomainFromText(text) {
+    const normalizedText = (text || '').toLowerCase();
+
+    const domainPatterns = {
+      frontend: /\b(react|vue|angular|component|css|html|ui|ux|button|form|modal|style)\b/,
+      backend: /\b(api|endpoint|server|controller|route|middleware|service|handler)\b/,
+      database: /\b(sql|query|table|migration|schema|index|database|postgres|mysql|mongo)\b/,
+      security: /\b(auth|permission|token|jwt|csrf|xss|injection|encrypt|secure|password)\b/,
+      testing: /\b(test|spec|jest|mocha|coverage|mock|fixture|assertion|unit|integration)\b/,
+      devops: /\b(deploy|docker|kubernetes|ci|cd|pipeline|aws|azure|gcp|terraform)\b/,
+      performance: /\b(optimize|cache|latency|throughput|memory|cpu|performance|speed)\b/,
+      architecture: /\b(architecture|design|pattern|structure|module|layer|service)\b/
+    };
+
+    for (const [domain, pattern] of Object.entries(domainPatterns)) {
+      if (pattern.test(normalizedText)) {
+        return domain;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Extract tags from decision content
+   * @param {Object} decision - Decision data
+   * @returns {Array} Extracted tags
+   */
+  extractTagsFromDecision(decision) {
+    const text = `${decision.title || ''} ${decision.choice || ''} ${decision.rationale || ''}`;
+    return this.extractTagsFromText(text);
+  }
+
+  /**
+   * Extract tags from text content
+   * @param {string} text - Text to analyze
+   * @returns {Array} Extracted tags
+   */
+  extractTagsFromText(text) {
+    const normalizedText = (text || '').toLowerCase();
+    const tags = [];
+
+    // Technology tags
+    const techPatterns = /\b(react|vue|angular|node|python|java|typescript|javascript|graphql|rest|postgres|mongodb|redis|docker|kubernetes)\b/gi;
+    const techMatches = normalizedText.match(techPatterns) || [];
+    tags.push(...techMatches.map(t => t.toLowerCase()));
+
+    // Action tags
+    const actionPatterns = /\b(create|update|delete|fix|add|remove|implement|refactor|optimize|migrate)\b/gi;
+    const actionMatches = normalizedText.match(actionPatterns) || [];
+    tags.push(...actionMatches.map(a => a.toLowerCase()));
+
+    // Concept tags
+    const conceptPatterns = /\b(authentication|authorization|caching|logging|monitoring|validation|error-handling)\b/gi;
+    const conceptMatches = normalizedText.match(conceptPatterns) || [];
+    tags.push(...conceptMatches.map(c => c.toLowerCase()));
+
+    return [...new Set(tags)];
+  }
+
+  /**
+   * Extract decisions from task notes
+   * @param {string} notes - Task notes
+   * @param {Object} task - Task context
+   * @returns {Array} Extracted decisions
+   */
+  extractDecisionsFromNotes(notes, task) {
+    const decisions = [];
+    const decisionIndicators = [
+      /decided to/gi,
+      /chose to/gi,
+      /will use/gi,
+      /going with/gi,
+      /selected/gi,
+      /prefer(red)?/gi
+    ];
+
+    const sentences = notes.split(/[.!?]+/);
+
+    for (const sentence of sentences) {
+      for (const pattern of decisionIndicators) {
+        if (pattern.test(sentence)) {
+          decisions.push({
+            summary: sentence.trim(),
+            source: 'task_notes',
+            taskId: task.id,
+            confidence: 0.5, // Lower confidence for auto-extracted
+            autoExtracted: true
+          });
+          break; // Only match once per sentence
+        }
+      }
+    }
+
+    return decisions;
+  }
+
+  /**
+   * Detect patterns in phase implementation
+   * @param {Object} phase - Phase data
+   * @returns {Array} Detected patterns
+   */
+  detectPatternsInPhase(phase) {
+    const patterns = [];
+
+    // Look for repeated structures
+    if (phase.tasks && phase.tasks.length > 2) {
+      const taskTypes = phase.tasks.map(t => t.type || 'unknown');
+      const typeCounts = {};
+
+      for (const type of taskTypes) {
+        typeCounts[type] = (typeCounts[type] || 0) + 1;
+      }
+
+      // If a type appears 3+ times, it might be a pattern
+      for (const [type, count] of Object.entries(typeCounts)) {
+        if (count >= 3) {
+          patterns.push({
+            name: `Repeated ${type} pattern`,
+            category: 'implementation',
+            occurrences: count,
+            confidence: 0.6
+          });
+        }
+      }
+    }
+
+    return patterns;
+  }
+
+  /**
+   * Extract insights from text
+   * @param {string} text - Text to analyze
+   * @returns {Array} Extracted insights
+   */
+  extractInsightsFromText(text) {
+    const insights = [];
+    const insightIndicators = [
+      /learned that/gi,
+      /discovered that/gi,
+      /realized that/gi,
+      /found that/gi,
+      /noticed that/gi,
+      /important to/gi,
+      /should always/gi,
+      /never forget/gi
+    ];
+
+    const sentences = (text || '').split(/[.!?]+/);
+
+    for (const sentence of sentences) {
+      for (const pattern of insightIndicators) {
+        if (pattern.test(sentence)) {
+          insights.push({
+            insight: sentence.trim(),
+            confidence: 0.5,
+            autoExtracted: true
+          });
+          break;
+        }
+      }
+    }
+
+    return insights;
+  }
+
+  /**
+   * Extract key learnings from phase learnings
+   * @param {Object} learnings - Phase learnings object
+   * @returns {Array} Key learnings (top 3)
+   */
+  extractKeyLearnings(learnings) {
+    const all = [
+      ...learnings.decisions.map(d => ({ type: 'decision', text: d.summary || d.title, confidence: d.confidence || 0.5 })),
+      ...learnings.insights.map(i => ({ type: 'insight', text: i.insight, confidence: i.confidence || 0.5 })),
+      ...learnings.blockers.filter(b => b.resolution).map(b => ({ type: 'blocker_resolution', text: `${b.issue} → ${b.resolution}`, confidence: 0.8 }))
+    ];
+
+    // Sort by confidence and take top 3
+    return all
+      .sort((a, b) => b.confidence - a.confidence)
+      .slice(0, 3)
+      .map(l => l.text);
+  }
+
+  /**
+   * Format enhanced retrospective with journal data
+   * @param {Object} retro - Enhanced retrospective object
+   * @returns {string} Formatted markdown
+   */
+  formatEnhancedRetrospectiveMarkdown(retro) {
+    let content = this.formatRetrospectiveMarkdown(retro);
+
+    // Add journal-specific sections
+    if (retro.decisions && retro.decisions.length > 0) {
+      content += `\n## Key Decisions Made\n\n`;
+      for (const decision of retro.decisions.slice(0, 5)) {
+        content += `- ${decision}\n`;
+      }
+    }
+
+    if (retro.discoveries && retro.discoveries.length > 0) {
+      content += `\n## Discoveries\n\n`;
+      for (const discovery of retro.discoveries.slice(0, 5)) {
+        content += `- ${discovery}\n`;
+      }
+    }
+
+    if (retro.resolvedBlockers && retro.resolvedBlockers.length > 0) {
+      content += `\n## Blocker Resolutions\n\n`;
+      for (const blocker of retro.resolvedBlockers) {
+        content += `### ${blocker.issue}\n`;
+        content += `- **Resolution**: ${blocker.resolution}\n`;
+        if (blocker.preventionStrategy) {
+          content += `- **Prevention**: ${blocker.preventionStrategy}\n`;
+        }
+        content += '\n';
+      }
+    }
+
+    if (retro.journalSummary) {
+      content += `\n## Session Journal Summary\n\n`;
+      content += `- Total Entries: ${retro.journalSummary.entriesCount || 0}\n`;
+      content += `- Decisions Captured: ${retro.journalSummary.decisionsCount || 0}\n`;
+      content += `- Discoveries Made: ${retro.journalSummary.discoveriesCount || 0}\n`;
+    }
+
+    return content;
+  }
 }
 
 module.exports = KnowledgeCapture;

@@ -108,6 +108,19 @@
   "knowledge": {
     "decisions": [],
     "patterns": [],
-    "retrospective": null
+    "retrospective": null,
+    "research": [],
+    "learnings": [],
+    "blockerResolutions": [],
+    "sessionJournal": {
+      "entries": [],
+      "summary": null
+    },
+    "contextEnrichments": [],
+    "knowledgeInjected": [],
+    "feedbackLoop": {
+      "knowledgeUsed": [],
+      "outcomes": []
+    }
   }
 }

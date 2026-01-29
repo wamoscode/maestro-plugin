@@ -6,7 +6,9 @@ A comprehensive orchestration plugin that bundles 40+ specialized sub-agents for
 
 Maestro acts as a master orchestrator—like a skilled conductor leading an orchestra—analyzing user tasks, determining the optimal sub-agent(s) to invoke, coordinating their execution (parallel or sequential), and synthesizing their results into cohesive deliverables.
 
-**New in v1.8**: Multi-Branch Parallel Sessions - multiple Claude Code instances can work simultaneously on different git branches with proper isolation, session locking, and cross-session notifications.
+**New in v1.9**: Context-Aware Learning System - captures decisions, research, and discoveries during workflow execution, builds knowledge over time, and uses accumulated knowledge to inform future tasks.
+
+**v1.8**: Multi-Branch Parallel Sessions - multiple instances can work simultaneously on different git branches with proper isolation, session locking, and cross-session notifications.
 
 **v1.6**: Platform Sync for bidirectional synchronization with ClickUp, Linear, Jira, Asana, Todoist, YouTrack, and more via API or MCP.
 
@@ -35,6 +37,9 @@ Maestro acts as a master orchestrator—like a skilled conductor leading an orch
 - **Quality Gates**: Automated checkpoints and CI/CD integration
 - **Impact Analysis**: Blast radius calculation and risk assessment
 - **Track Archetypes**: Pre-built templates for common patterns (API, auth, migrations)
+- **Context-Aware Learning**: Captures decisions and discoveries, uses past knowledge for future tasks
+- **Knowledge Store**: Persistent storage for decisions, patterns, research, and learnings
+- **Knowledge Injection**: Automatically enriches task context with relevant past knowledge
 - **Workflow Templates**: TDD, Agile, and Minimal methodologies
 - **Code Style Guides**: TypeScript, Python, Go, and Rust templates
 - **Git Integration**: Commit tracking and git-aware revert functionality
@@ -470,6 +475,171 @@ When `maestro/` is gitignored:
 - Session state survives branch switches
 
 This is the **recommended mode** for multi-branch development.
+
+## Context-Aware Learning System (v1.9)
+
+The learning system captures decisions, research, and discoveries during CDD workflow execution, building knowledge over time that informs future tasks.
+
+### Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│              Context-Aware Learning Architecture                 │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│           SessionLearningController (Orchestrator)               │
+│                          │                                       │
+│     ┌────────────────────┼────────────────────┐                 │
+│     │                    │                    │                 │
+│     ▼                    ▼                    ▼                 │
+│ ┌──────────┐      ┌──────────────┐     ┌─────────────┐         │
+│ │ Learning │      │   Context    │     │  Knowledge  │         │
+│ │ Journal  │      │ Enrichment   │     │   Recall    │         │
+│ └────┬─────┘      └──────┬───────┘     └──────┬──────┘         │
+│      │                   │                    │                 │
+│      └───────────────────┴────────────────────┘                 │
+│                          │                                       │
+│                          ▼                                       │
+│                  ┌──────────────┐                               │
+│                  │  Knowledge   │                               │
+│                  │    Store     │                               │
+│                  └──────────────┘                               │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### How It Works
+
+1. **Capture**: During task execution, decisions, research findings, and discoveries are captured in real-time
+2. **Store**: High-confidence learnings are persisted to the knowledge store
+3. **Recall**: When starting new tasks, relevant past knowledge is retrieved
+4. **Inject**: Retrieved knowledge is formatted and injected into agent context
+5. **Feedback**: Outcomes are recorded to improve future knowledge relevance
+
+### Knowledge Types
+
+| Type | Description | Example |
+|------|-------------|---------|
+| **Decision** | Choices made during implementation | "Use JWT with refresh tokens for auth" |
+| **Pattern** | Reusable approaches identified | "API error handling with typed responses" |
+| **Research** | Findings from investigation | "Redis caching improves response by 40%" |
+| **Discovery** | Unexpected insights | "Component re-renders due to prop drilling" |
+| **Blocker** | Issues and their resolutions | "Token expiry → Implemented refresh flow" |
+
+### Automatic Knowledge Capture
+
+During `/maestro:implement`, the system automatically:
+
+```
+Step 7 (Pre-execution):
+  → Recalls relevant past knowledge
+  → Injects into agent context with relevance scores
+  → Tracks which knowledge IDs were used
+
+Step 9 (Post-execution):
+  → Parses agent output for decision indicators
+  → Captures decisions with rationale
+  → Records knowledge usage outcomes
+
+Step 11 (Phase Completion):
+  → Summarizes phase learnings
+  → Generates enrichment suggestions
+  → Displays learning summary
+
+Step 12 (Track Completion):
+  → Exports journal to knowledge base
+  → Creates enhanced retrospective
+  → Updates knowledge confidence scores
+```
+
+### Knowledge Injection Example
+
+When starting a new task, relevant knowledge is automatically injected:
+
+```markdown
+## Relevant Past Knowledge
+
+### Decisions (with confidence scores)
+- **Use JWT with refresh tokens** (85% confidence, 92% relevance)
+  - Rationale: Stateless authentication with secure token rotation
+- **Prefer functional components** (78% confidence, 75% relevance)
+
+### Applicable Patterns
+- Error handling pattern: try-catch with custom error types
+- API response format: { success, data, error }
+
+### Recommendations
+- Review decision on caching strategy (high priority)
+- Similar task had authentication blocker - check token refresh
+```
+
+### Phase Learning Summary
+
+At the end of each phase, a learning summary is displayed:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ Phase 2 Learning Summary                                │
+├─────────────────────────────────────────────────────────┤
+│ Decisions: 3 captured                                   │
+│   • Use connection pooling for DB (high confidence)     │
+│   • Implement retry logic with exponential backoff      │
+│   • Cache user sessions in Redis                        │
+│                                                         │
+│ Discoveries: 1                                          │
+│   • Pattern: All API endpoints follow /api/v1/{resource}│
+│                                                         │
+│ Blockers Resolved: 1                                    │
+│   • Auth token expiry → Implemented refresh flow        │
+│                                                         │
+│ Knowledge Injected: 2 entries used, 2 helpful           │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Knowledge Store Structure
+
+```
+maestro/
+└── knowledge/
+    ├── index.json           # Search index
+    ├── decisions/           # Decision entries
+    │   └── dec_xxx.json
+    ├── patterns/            # Pattern entries
+    │   └── pat_xxx.json
+    ├── research/            # Research entries
+    ├── learnings/           # Learning entries
+    ├── blockers/            # Blocker entries
+    └── sessions/            # Session journals
+        └── session-xxx.json
+```
+
+### Feedback Loop
+
+The system tracks knowledge usage outcomes:
+
+```
+Knowledge Used: "Use JWT for authentication" (dec_abc123)
+Task Outcome: Success
+Impact: Positive
+
+→ Confidence adjusted: 0.78 → 0.82
+→ Usage count: 3 → 4
+→ Success rate: 100%
+```
+
+This feedback improves future knowledge relevance scoring.
+
+### Context Enrichment Suggestions
+
+After significant learnings, the system suggests context file updates:
+
+```
+Context Updates Suggested:
+  • tech-stack.md: Add Redis caching section
+  • product-guidelines.md: Document auth approach
+  • code-styleguide.md: Add error handling pattern
+
+Apply suggested context updates? (Y/n)
+```
 
 ## Multi-Project Workspaces
 
@@ -974,10 +1144,15 @@ maestro-plugin/
 │   ├── branch-session-manager.js  # Session/lock management (v1.8)
 │   ├── branch-context.js   # Branch context management (v1.8)
 │   ├── session-notifications.js   # Cross-session notifications (v1.8)
+│   ├── session-learning-controller.js  # Learning orchestrator (v1.9)
+│   ├── knowledge-store.js  # Knowledge persistence (v1.9)
+│   ├── learning-journal.js # Real-time capture (v1.9)
+│   ├── knowledge-recall.js # Knowledge retrieval (v1.9)
+│   ├── context-enrichment.js  # Auto-enrichment (v1.9)
+│   ├── knowledge-capture.js   # ADRs and retrospectives
 │   ├── context-versioning.js
 │   ├── quality-gates.js
-│   ├── impact-analysis.js
-│   └── knowledge-capture.js
+│   └── impact-analysis.js
 ├── scripts/                # Automation scripts
 └── mcp/                    # MCP server
 ```
