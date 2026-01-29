@@ -8,8 +8,8 @@
   "plugins": [
     {
       "name": "maestro",
-      "version": "1.7.0",
-      "description": "Master orchestrator with Context-Driven Development, platform sync, multi-project workspaces, git submodule support, and 40+ specialized sub-agents",
+      "version": "1.8.0",
+      "description": "Master orchestrator with Context-Driven Development, multi-branch parallel sessions, platform sync, multi-project workspaces, git submodule support, and 40+ specialized sub-agents",
       "license": "MIT",
       "repository": "https://github.com/wamoscode/maestro-plugin",
       "homepage": "https://github.com/wamoscode/maestro-plugin",
@@ -28,7 +28,10 @@
         "platform-sync",
         "jira",
         "linear",
-        "asana"
+        "asana",
+        "multi-branch",
+        "parallel-sessions",
+        "session-locking"
       ],
       "source": "./maestro-plugin"
     }
