@@ -663,118 +663,114 @@ export YOUTRACK_TOKEN="your-token"
 
 Choose the installation method that best fits your needs:
 
-### Option 1: Symlink (Recommended for Development)
+### Option 1: Direct Install from GitHub (Recommended)
 
-Best for local development—changes are reflected immediately without reinstalling.
+The simplest way to install Maestro. Run this command in Claude Code:
+
+```
+/plugin install wamoscode/maestro-plugin
+```
+
+That's it! The plugin will be downloaded and installed automatically.
+
+### Option 2: Install via Marketplace
+
+If you prefer using the marketplace system:
+
+```
+# Add the marketplace
+/plugin marketplace add wamoscode/maestro-plugin
+
+# Install the plugin
+/plugin install maestro@maestro-plugins
+```
+
+### Option 3: Local Development Setup
+
+For contributors or local development with live reload:
 
 ```bash
 # Clone the repository
 git clone https://github.com/wamoscode/maestro-plugin.git ~/Projects/maestro-plugin
 
-# Create symlink to plugins directory
-# macOS:
-ln -sf ~/Projects/maestro-plugin ~/.claude/plugins/maestro
-
-# Linux:
-ln -sf ~/Projects/maestro-plugin ~/.config/claude-code/plugins/maestro
+# Install from local path in Claude Code
+/plugin install ~/Projects/maestro-plugin
 ```
 
-### Option 2: Install Script
+### Option 4: Project-Level Installation
 
-Automated installation with dependency setup and configuration.
-
-```bash
-# Clone the repository
-git clone https://github.com/wamoscode/maestro-plugin.git
-
-# Navigate to the plugin directory
-cd maestro
-
-# Run the installation script
-./scripts/install.sh
-```
-
-The script will:
-- Detect your OS and set the correct plugin path
-- Copy plugin files to the plugins directory
-- Install npm dependencies
-- Create default configuration at `~/.maestro/config.json`
-- Verify the installation
-
-### Option 3: Direct Copy
-
-Simple copy to the plugins directory.
-
-```bash
-# Clone the repository
-git clone https://github.com/wamoscode/maestro-plugin.git
-
-# Copy to plugins directory
-# macOS:
-cp -r maestro ~/.claude/plugins/maestro
-
-# Linux:
-cp -r maestro ~/.config/claude-code/plugins/maestro
-
-# Install dependencies (optional, for MCP server)
-cd ~/.claude/plugins/maestro
-npm install
-```
-
-### Option 4: Settings Configuration
-
-Add the plugin path to your Claude Code settings.
-
-1. Edit `~/.claude/settings.json`:
+Add Maestro to a specific project by configuring `.claude/settings.json` in your project root:
 
 ```json
 {
-  "plugins": {
-    "maestro": {
-      "path": "/absolute/path/to/maestro-plugin"
+  "enabledPlugins": {
+    "maestro@maestro-plugins": true
+  },
+  "extraKnownMarketplaces": {
+    "maestro-plugins": {
+      "source": {
+        "source": "github",
+        "repo": "wamoscode/maestro-plugin"
+      }
     }
   }
 }
 ```
 
-2. Restart Claude Code to load the plugin.
+Team members will be prompted to install the plugin when they open the project.
 
 ### Post-Installation
 
-After installation, restart Claude Code or reload plugins, then verify:
+After installation, verify everything is working:
 
-```bash
+```
 # List available agents
 /list-subagents
 
 # Get help
 /agent-info maestro
 
-# Initialize project (new feature!)
+# Initialize project for Context-Driven Development
 /maestro:setup
+```
+
+### Updating
+
+To update to the latest version:
+
+```
+/plugin update maestro
+```
+
+Or if installed via marketplace:
+
+```
+/plugin marketplace update maestro-plugins
+/plugin update maestro@maestro-plugins
 ```
 
 ### Uninstallation
 
-```bash
-# Remove the plugin
-rm -rf ~/.claude/plugins/maestro
+```
+/plugin uninstall maestro
+```
 
-# Remove configuration (optional)
-rm -rf ~/.maestro
+Or if installed via marketplace:
 
-# If using symlink
-rm ~/.claude/plugins/maestro
+```
+/plugin uninstall maestro@maestro-plugins
+/plugin marketplace remove maestro-plugins
 ```
 
 ### Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
-| Plugin not loading | Restart Claude Code; check plugin.json is valid JSON |
-| Commands not found | Verify symlink/copy completed; check `~/.claude/plugins/maestro` exists |
-| MCP server errors | Run `npm install` in plugin directory; check Node.js 18+ installed |
-| Permission denied | Run `chmod +x scripts/*.sh` to make scripts executable |
+| Plugin not loading | Run `/plugin list` to verify installation; restart Claude Code |
+| Commands not found | Check `/plugin info maestro` for status |
+| MCP server errors | Ensure Node.js 18+ is installed |
+| Permission denied | Check repository access permissions |
+| Validation errors | Run `/plugin validate` in the plugin directory |
 
 ## Usage Examples
 
@@ -886,14 +882,16 @@ The plugin can be configured via `~/.maestro/config.json`:
 
 ## MCP Server
 
-The plugin includes an MCP server for advanced integrations:
+The plugin includes an MCP server that is automatically configured when you install the plugin. No manual configuration is required.
+
+If you need to configure it manually (for development or custom setups), add to your `~/.claude/settings.json`:
 
 ```json
 {
   "mcpServers": {
     "maestro": {
       "command": "node",
-      "args": ["~/.claude/plugins/maestro/mcp/server.js"]
+      "args": ["/path/to/maestro-plugin/mcp/server.js"]
     }
   }
 }
