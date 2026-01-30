@@ -6,7 +6,9 @@ A comprehensive orchestration plugin that bundles 40+ specialized sub-agents for
 
 Maestro acts as a master orchestrator—like a skilled conductor leading an orchestra—analyzing user tasks, determining the optimal sub-agent(s) to invoke, coordinating their execution (parallel or sequential), and synthesizing their results into cohesive deliverables.
 
-**New in v1.9**: Context-Aware Learning System - captures decisions, research, and discoveries during workflow execution, builds knowledge over time, and uses accumulated knowledge to inform future tasks.
+**New in v1.10**: Git Worktree Isolation - true physical branch isolation using Git worktrees. Each branch gets its own directory, enabling completely independent parallel work across multiple terminals.
+
+**v1.9**: Context-Aware Learning System - captures decisions, research, and discoveries during workflow execution, builds knowledge over time, and uses accumulated knowledge to inform future tasks.
 
 **v1.8**: Multi-Branch Parallel Sessions - multiple instances can work simultaneously on different git branches with proper isolation, session locking, and cross-session notifications.
 
@@ -26,6 +28,7 @@ Maestro acts as a master orchestrator—like a skilled conductor leading an orch
 - **Workflow Orchestration**: Define complex multi-step workflows with dependencies
 - **Context-Driven Development**: Structured tracks with specs, plans, and checkpoints
 - **Multi-Branch Parallel Sessions**: Multiple Claude instances working on different branches simultaneously
+- **Git Worktree Isolation**: True physical isolation with separate directories per branch
 - **Branch Isolation**: Each branch maintains its own tracks and context state
 - **Session Locking**: Prevents concurrent modifications with clear conflict warnings
 - **Cross-Session Notifications**: Get alerted when other sessions need attention
@@ -97,13 +100,13 @@ For quick, untracked tasks:
 | `/maestro:stash` | Pause/resume tracks without reverting |
 | `/maestro:quick` | Fast shortcuts for common CDD actions |
 
-### Multi-Branch Session Commands (v1.8)
+### Multi-Branch Session Commands (v1.8+)
 
 | Command | Description |
 |---------|-------------|
 | `/maestro:branch` | Manage CDD context across git branches |
 | `/maestro:branch list` | List all branches with CDD context |
-| `/maestro:branch switch <branch>` | Switch to a branch with context preservation |
+| `/maestro:branch switch <branch>` | Switch to a branch (uses worktree if available) |
 | `/maestro:branch status` | Show current branch's CDD status |
 | `/maestro:branch migrate` | Migrate legacy context to branch-aware structure |
 | `/maestro:session` | Manage sessions, locks, and notifications |
@@ -111,6 +114,17 @@ For quick, untracked tasks:
 | `/maestro:session release <branch>` | Release a stale session lock |
 | `/maestro:session notifications` | View/manage cross-session notifications |
 | `/maestro:session notify <branch> <msg>` | Send notification to another session |
+
+### Git Worktree Commands (v1.10)
+
+| Command | Description |
+|---------|-------------|
+| `/maestro:worktree create <branch>` | Create isolated worktree for a branch |
+| `/maestro:worktree remove <branch>` | Remove a worktree (keeps the branch) |
+| `/maestro:worktree list` | List all worktrees with their status |
+| `/maestro:worktree navigate <branch>` | Get instructions to navigate to a worktree |
+| `/maestro:worktree status` | Show current worktree context |
+| `/maestro:worktree sync` | Sync shared context files across worktrees |
 
 ### Multi-Project Commands
 
@@ -475,6 +489,125 @@ When `maestro/` is gitignored:
 - Session state survives branch switches
 
 This is the **recommended mode** for multi-branch development.
+
+## Git Worktree Isolation (v1.10)
+
+For **true physical isolation** between branches, use Git worktrees. Unlike regular branch switching (which affects all terminals), worktrees create completely separate working directories.
+
+### The Problem
+
+When you run `git checkout feature/auth`, ALL terminal sessions see the new branch. This breaks parallel workflows:
+
+```
+Terminal 1: git checkout feature/auth  →  ALL terminals now on feature/auth
+Terminal 2: also now on feature/auth   ✗  (wanted to stay on main)
+```
+
+### The Solution: Worktrees
+
+Git worktrees create separate directories for each branch:
+
+```
+~/project/                    → main branch
+~/project-feature-auth/       → feature/auth (completely isolated)
+~/project-hotfix-login/       → hotfix/login (completely isolated)
+```
+
+Each terminal works in its own directory with full independence.
+
+### Quick Start
+
+```bash
+# Create a worktree for a feature branch
+/maestro:worktree create feature/auth
+
+# Output:
+# ✓ Worktree created at: /Users/you/project-feature-auth
+#
+# To work in this worktree, open a NEW terminal and run:
+#   cd /Users/you/project-feature-auth
+#   /maestro:cdd
+
+# List all worktrees
+/maestro:worktree list
+
+# Navigate to a worktree (shows instructions)
+/maestro:worktree navigate feature/auth
+
+# Remove when done (keeps the branch)
+/maestro:worktree remove feature/auth
+```
+
+### Automatic Integration
+
+Worktrees are automatically integrated into other commands:
+
+- **`/maestro:cdd`**: Detects worktree context, skips locking (not needed), recommends worktrees when parallel sessions detected
+- **`/maestro:branch switch`**: Checks for existing worktree first, navigates instead of checkout
+- **`/maestro:implement`**: Notes worktree isolation status, no branch conflict warnings
+
+### Worktree Structure
+
+```
+~/Projects/
+├── my-app/                          # Main repository (main branch)
+│   ├── .git/                        # Actual git data
+│   ├── maestro/
+│   │   ├── shared/                  # Shared context files
+│   │   └── branches/main/           # Branch-specific context
+│   └── src/
+│
+├── my-app-feature-auth/             # Worktree (feature/auth branch)
+│   ├── .git                         # File pointing to main .git
+│   ├── maestro/
+│   │   ├── shared/                  # Copied from main
+│   │   └── branches/feature--auth/  # Branch-specific context
+│   └── src/
+```
+
+### Commands
+
+```bash
+# Create worktree for existing branch
+/maestro:worktree create feature/auth
+
+# Create worktree with new branch
+/maestro:worktree create feature/payments --new
+
+# List all worktrees with status
+/maestro:worktree list
+
+# Get navigation instructions
+/maestro:worktree navigate feature/auth
+
+# Check current worktree status
+/maestro:worktree status
+
+# Sync shared context to all worktrees
+/maestro:worktree sync
+
+# Remove worktree (branch preserved)
+/maestro:worktree remove feature/auth
+```
+
+### Best Practices
+
+1. **Always use separate terminals** for each worktree
+2. **Create worktrees from main repo** for consistency
+3. **Sync shared context** after updating product.md or tech-stack.md
+4. **Remove worktrees** when branches are merged
+5. **Use `/maestro:cdd`** in each worktree to activate CDD mode
+
+### When to Use Worktrees vs Regular Branches
+
+| Scenario | Recommendation |
+|----------|---------------|
+| Single terminal, switching between tasks | Regular branches OK |
+| Multiple terminals, same branch | Regular branches OK |
+| Multiple terminals, different branches | **Use worktrees** |
+| CI/CD or automation scripts | Regular branches OK |
+| Parallel feature development | **Use worktrees** |
+| Quick hotfix while working on feature | **Use worktrees** |
 
 ## Context-Aware Learning System (v1.9)
 
@@ -1105,7 +1238,8 @@ maestro-plugin/
 │   │   ├── stash.md        # Track stashing
 │   │   ├── quick.md        # Quick actions
 │   │   ├── branch.md       # Branch management (v1.8)
-│   │   └── session.md      # Session management (v1.8)
+│   │   ├── session.md      # Session management (v1.8)
+│   │   └── worktree.md     # Worktree management (v1.10)
 │   ├── workflow.md         # Workflow orchestration
 │   ├── list-subagents.md   # Agent browser
 │   ├── agent-info.md       # Agent details
@@ -1144,6 +1278,7 @@ maestro-plugin/
 │   ├── branch-session-manager.js  # Session/lock management (v1.8)
 │   ├── branch-context.js   # Branch context management (v1.8)
 │   ├── session-notifications.js   # Cross-session notifications (v1.8)
+│   ├── worktree-manager.js # Git worktree management (v1.10)
 │   ├── session-learning-controller.js  # Learning orchestrator (v1.9)
 │   ├── knowledge-store.js  # Knowledge persistence (v1.9)
 │   ├── learning-journal.js # Real-time capture (v1.9)
