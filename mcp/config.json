@@ -1,6 +1,6 @@
 {
   "name": "maestro-mcp",
-  "version": "1.10.0",
+  "version": "1.10.1",
   "description": "MCP server for Maestro plugin - provides advanced orchestration and multi-branch session capabilities",
   "server": {
     "type": "stdio",
@@ -218,6 +218,117 @@
           }
         }
       }
+    },
+    {
+      "name": "complete_execution",
+      "description": "Complete a workflow execution and run post-execution hooks",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "executionId": {
+            "type": "string",
+            "description": "The execution ID to complete"
+          },
+          "results": {
+            "type": "object",
+            "description": "Execution results (success, outputs, errors)"
+          }
+        },
+        "required": ["executionId"]
+      }
+    },
+    {
+      "name": "learning_init",
+      "description": "Initialize a learning session for the Context-Aware Learning System",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "branch": {
+            "type": "string",
+            "description": "Git branch name for the learning session"
+          },
+          "sessionId": {
+            "type": "string",
+            "description": "Session identifier (auto-generated if not provided)"
+          },
+          "options": {
+            "type": "object",
+            "description": "Initialization options (trackId, etc.)"
+          }
+        },
+        "required": ["branch"]
+      }
+    },
+    {
+      "name": "learning_finalize",
+      "description": "Finalize the current learning session and persist all learnings",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "options": {
+            "type": "object",
+            "description": "Finalization options (generateRetrospective, etc.)"
+          }
+        }
+      }
+    },
+    {
+      "name": "learning_status",
+      "description": "Get the current learning session status and summary",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "learning_capture",
+      "description": "Capture a decision, research finding, or discovery",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["decision", "research", "discovery"],
+            "description": "Type of learning to capture"
+          },
+          "data": {
+            "type": "object",
+            "description": "Learning data (title, description, rationale, context, etc.)"
+          }
+        },
+        "required": ["type", "data"]
+      }
+    },
+    {
+      "name": "learning_get_knowledge",
+      "description": "Get relevant knowledge for a task context",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "taskContext": {
+            "type": "object",
+            "description": "Task context (description, domain, tags, etc.)"
+          }
+        }
+      }
+    },
+    {
+      "name": "learning_phase_complete",
+      "description": "Handle phase completion and summarize phase learnings",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "phase": {
+            "type": "object",
+            "description": "Phase information (name, id, tasks completed)"
+          },
+          "track": {
+            "type": "object",
+            "description": "Track data"
+          }
+        },
+        "required": ["phase"]
+      }
     }
   ],
   "resources": [
@@ -255,6 +366,18 @@
       "uri": "maestro://sync/links",
       "name": "Sync Links",
       "description": "Mappings between CDD tracks and external platform items",
+      "mimeType": "application/json"
+    },
+    {
+      "uri": "maestro://learning/status",
+      "name": "Learning Status",
+      "description": "Current learning session status and summary",
+      "mimeType": "application/json"
+    },
+    {
+      "uri": "maestro://learning/knowledge",
+      "name": "Knowledge Store",
+      "description": "Accumulated knowledge from the learning system",
       "mimeType": "application/json"
     }
   ],
