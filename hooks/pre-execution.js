@@ -2,24 +2,97 @@
  * Pre-Execution Hook
  *
  * This hook runs before any sub-agent execution.
- * It handles validation, logging, and context preparation.
+ * It handles validation, logging, context preparation,
+ * and knowledge injection from the learning system.
  */
 
 const fs = require('fs');
 const path = require('path');
 
+// Import learning system components
+let SessionLearningController;
+try {
+  SessionLearningController = require('../skills/session-learning-controller');
+} catch (e) {
+  console.warn('[Maestro] Learning system not available:', e.message);
+}
+
 class PreExecutionHook {
   constructor(config = {}) {
     this.config = {
       logDir: config.logDir || '.maestro/logs',
+      maestroDir: config.maestroDir || 'maestro',
       validateAgents: config.validateAgents !== false,
       checkConflicts: config.checkConflicts !== false,
       maxConcurrentAgents: config.maxConcurrentAgents || 5,
+      enableLearning: config.enableLearning !== false,
       ...config
     };
 
     this.activeAgents = new Set();
     this.executionLog = [];
+
+    // Initialize learning controller if available
+    this.learningController = null;
+    this.learningSessionActive = false;
+    if (SessionLearningController && this.config.enableLearning) {
+      try {
+        this.learningController = new SessionLearningController({
+          maestroDir: this.config.maestroDir
+        });
+      } catch (e) {
+        console.warn('[Maestro] Failed to initialize learning controller:', e.message);
+      }
+    }
+  }
+
+  /**
+   * Initialize learning session for CDD mode
+   * @param {string} branch - Git branch name
+   * @param {string} sessionId - Session identifier
+   * @param {Object} options - Initialization options
+   * @returns {Object} Initialization result
+   */
+  initializeLearningSession(branch, sessionId, options = {}) {
+    if (!this.learningController) {
+      return {
+        success: false,
+        error: 'Learning controller not available',
+        message: 'Learning system is not initialized'
+      };
+    }
+
+    const result = this.learningController.initializeSession(branch, sessionId, options);
+    if (result.success) {
+      this.learningSessionActive = true;
+    }
+    return result;
+  }
+
+  /**
+   * Set active track for learning context
+   * @param {string} trackId - Track identifier
+   */
+  setActiveTrack(trackId) {
+    if (this.learningController && this.learningSessionActive) {
+      this.learningController.setActiveTrack(trackId);
+    }
+  }
+
+  /**
+   * Get learning controller for external access
+   * @returns {SessionLearningController|null}
+   */
+  getLearningController() {
+    return this.learningController;
+  }
+
+  /**
+   * Check if learning session is active
+   * @returns {boolean}
+   */
+  isLearningActive() {
+    return this.learningSessionActive && this.learningController !== null;
   }
 
   /**
@@ -58,13 +131,26 @@ class PreExecutionHook {
       context.executionId = executionId;
       context.startTime = Date.now();
 
-      // Step 5: Log execution start
+      // Step 5: Inject knowledge from learning system (NEW)
+      if (this.learningSessionActive && this.learningController) {
+        const knowledgeInjection = await this.injectKnowledge(context);
+        if (knowledgeInjection.success && knowledgeInjection.enriched) {
+          context.knowledgeInjection = knowledgeInjection;
+          context.injectedKnowledgeIds = knowledgeInjection.knowledgeIds || [];
+          // Append knowledge to task description for agent context
+          if (knowledgeInjection.formattedContext) {
+            context.enrichedTask = task + '\n\n' + knowledgeInjection.formattedContext;
+          }
+        }
+      }
+
+      // Step 6: Log execution start
       await this.logExecutionStart(context);
 
-      // Step 6: Register active agent
+      // Step 7: Register active agent
       this.activeAgents.add(agent);
 
-      // Step 7: Prepare isolated context if needed
+      // Step 8: Prepare isolated context if needed
       if (options.isolatedContext) {
         context.isolatedContext = this.createIsolatedContext(context);
       }
@@ -82,6 +168,53 @@ class PreExecutionHook {
         error: error.message,
         context
       };
+    }
+  }
+
+  /**
+   * Inject relevant knowledge into the execution context
+   * @param {Object} context - Execution context
+   * @returns {Object} Knowledge injection result
+   */
+  async injectKnowledge(context) {
+    if (!this.learningController) {
+      return { success: false, enriched: false };
+    }
+
+    try {
+      const taskContext = {
+        id: context.executionId,
+        title: context.task?.substring(0, 200) || 'Unknown task',
+        description: context.task,
+        agentId: context.agent,
+        trackId: context.trackId,
+        phase: context.phase
+      };
+
+      // Get relevant knowledge
+      const recallResult = this.learningController.getRelevantKnowledge(taskContext);
+
+      if (!recallResult.success || !recallResult.knowledge || recallResult.knowledge.length === 0) {
+        return { success: true, enriched: false, reason: 'No relevant knowledge found' };
+      }
+
+      // Get formatted context for injection
+      const formattedContext = this.learningController.getKnowledgeInjection(taskContext);
+
+      // Track which knowledge IDs were injected for feedback loop
+      const knowledgeIds = recallResult.knowledge.map(k => k.id);
+
+      return {
+        success: true,
+        enriched: true,
+        knowledgeIds: knowledgeIds,
+        knowledgeCount: recallResult.knowledge.length,
+        formattedContext: formattedContext,
+        recommendations: recallResult.recommendations
+      };
+    } catch (error) {
+      console.warn('[Maestro] Knowledge injection failed:', error.message);
+      return { success: false, enriched: false, error: error.message };
     }
   }
 

@@ -2,7 +2,8 @@
  * Post-Execution Hook
  *
  * This hook runs after sub-agent execution completes.
- * It handles result processing, logging, and cleanup.
+ * It handles result processing, logging, cleanup,
+ * and captures learnings for the knowledge system.
  */
 
 const fs = require('fs');
@@ -16,10 +17,22 @@ class PostExecutionHook {
       saveResults: config.saveResults !== false,
       aggregateMetrics: config.aggregateMetrics !== false,
       notifyOnComplete: config.notifyOnComplete || false,
+      enableLearning: config.enableLearning !== false,
       ...config
     };
 
     this.executionHistory = [];
+
+    // Reference to learning controller (set by pre-execution hook)
+    this.learningController = null;
+  }
+
+  /**
+   * Set learning controller reference
+   * @param {Object} controller - SessionLearningController instance
+   */
+  setLearningController(controller) {
+    this.learningController = controller;
   }
 
   /**
@@ -35,7 +48,10 @@ class PostExecutionHook {
       startTime,
       result,
       error,
-      warnings = []
+      warnings = [],
+      injectedKnowledgeIds = [],
+      trackId,
+      phase
     } = context;
 
     const endTime = Date.now();
@@ -48,7 +64,18 @@ class PostExecutionHook {
       // Step 2: Calculate metrics
       const metrics = this.calculateMetrics(context, duration);
 
-      // Step 3: Log completion
+      // Step 3: Capture learnings from agent output (NEW)
+      let learningsCapture = { captured: 0 };
+      if (this.learningController && this.config.enableLearning) {
+        learningsCapture = await this.captureLearnings(context, processedResult);
+      }
+
+      // Step 4: Record outcomes for injected knowledge (NEW)
+      if (this.learningController && injectedKnowledgeIds.length > 0) {
+        await this.recordKnowledgeOutcomes(context, injectedKnowledgeIds, !error);
+      }
+
+      // Step 5: Log completion
       await this.logCompletion({
         executionId,
         agent,
@@ -56,25 +83,26 @@ class PostExecutionHook {
         duration,
         success: !error,
         metrics,
-        warnings
+        warnings,
+        learningsCapture
       });
 
-      // Step 4: Save results if configured
+      // Step 6: Save results if configured
       if (this.config.saveResults && processedResult) {
         await this.saveResults(executionId, processedResult);
       }
 
-      // Step 5: Update aggregated metrics
+      // Step 7: Update aggregated metrics
       if (this.config.aggregateMetrics) {
         await this.updateAggregatedMetrics(agent, metrics);
       }
 
-      // Step 6: Notify if configured
+      // Step 8: Notify if configured
       if (this.config.notifyOnComplete) {
         await this.notify(context, processedResult);
       }
 
-      // Step 7: Cleanup
+      // Step 9: Cleanup
       await this.cleanup(context);
 
       return {
@@ -84,7 +112,8 @@ class PostExecutionHook {
         duration,
         result: processedResult,
         metrics,
-        warnings
+        warnings,
+        learningsCapture
       };
 
     } catch (hookError) {
@@ -99,6 +128,240 @@ class PostExecutionHook {
         originalError: error?.message
       };
     }
+  }
+
+  /**
+   * Capture learnings from agent output
+   * @param {Object} context - Execution context
+   * @param {Object} processedResult - Processed execution result
+   * @returns {Object} Capture results
+   */
+  async captureLearnings(context, processedResult) {
+    if (!this.learningController) {
+      return { captured: 0 };
+    }
+
+    const { agent, task, trackId, phase, executionId } = context;
+    const resultText = typeof processedResult?.raw === 'string'
+      ? processedResult.raw
+      : JSON.stringify(processedResult?.raw || '');
+
+    const captures = {
+      decisions: 0,
+      discoveries: 0,
+      research: 0,
+      blockers: 0
+    };
+
+    try {
+      // Extract and capture decisions
+      const decisions = this.extractDecisionsFromOutput(resultText);
+      for (const decision of decisions) {
+        this.learningController.captureDecision({
+          title: decision.title,
+          summary: decision.summary,
+          rationale: decision.rationale,
+          choice: decision.choice,
+          agentId: agent,
+          taskId: executionId,
+          trackId: trackId,
+          phase: phase,
+          confidence: decision.confidence || 0.7,
+          autoExtracted: true
+        });
+        captures.decisions++;
+      }
+
+      // Extract and capture discoveries/patterns
+      const discoveries = this.extractDiscoveriesFromOutput(resultText);
+      for (const discovery of discoveries) {
+        this.learningController.captureDiscovery({
+          insight: discovery.insight,
+          summary: discovery.summary,
+          pattern: discovery.pattern,
+          agentId: agent,
+          taskId: executionId,
+          trackId: trackId,
+          phase: phase,
+          confidence: discovery.confidence || 0.6
+        });
+        captures.discoveries++;
+      }
+
+      // Extract and capture blockers
+      const blockers = this.extractBlockersFromOutput(resultText);
+      for (const blocker of blockers) {
+        this.learningController.captureBlocker({
+          issue: blocker.issue,
+          summary: blocker.summary,
+          resolution: blocker.resolution,
+          resolved: blocker.resolved,
+          agentId: agent,
+          taskId: executionId,
+          trackId: trackId,
+          phase: phase
+        });
+        captures.blockers++;
+      }
+
+      return {
+        captured: captures.decisions + captures.discoveries + captures.blockers,
+        details: captures
+      };
+    } catch (error) {
+      console.warn('[Maestro] Failed to capture learnings:', error.message);
+      return { captured: 0, error: error.message };
+    }
+  }
+
+  /**
+   * Record outcomes for injected knowledge
+   * @param {Object} context - Execution context
+   * @param {Array} knowledgeIds - IDs of injected knowledge
+   * @param {boolean} success - Whether task succeeded
+   */
+  async recordKnowledgeOutcomes(context, knowledgeIds, success) {
+    if (!this.learningController) return;
+
+    try {
+      const outcome = {
+        taskId: context.executionId,
+        trackId: context.trackId,
+        success: success,
+        impact: success ? 'positive' : 'neutral',
+        notes: success ? 'Task completed successfully' : 'Task had issues'
+      };
+
+      this.learningController.recordKnowledgeOutcome(knowledgeIds, outcome);
+    } catch (error) {
+      console.warn('[Maestro] Failed to record knowledge outcome:', error.message);
+    }
+  }
+
+  /**
+   * Extract decisions from agent output
+   * @param {string} output - Agent output text
+   * @returns {Array} Extracted decisions
+   */
+  extractDecisionsFromOutput(output) {
+    const decisions = [];
+    const decisionPatterns = [
+      { pattern: /decided to (.+?)(?:\.|$)/gi, confidence: 0.8 },
+      { pattern: /chose to (.+?)(?:\.|$)/gi, confidence: 0.8 },
+      { pattern: /will use (.+?) (?:for|to|because)(.+?)(?:\.|$)/gi, confidence: 0.7 },
+      { pattern: /going with (.+?)(?:\.|$)/gi, confidence: 0.7 },
+      { pattern: /selected (.+?) (?:as|for|because)(.+?)(?:\.|$)/gi, confidence: 0.75 },
+      { pattern: /prefer(?:red|ring)? (.+?) over (.+?)(?:\.|$)/gi, confidence: 0.8 }
+    ];
+
+    for (const { pattern, confidence } of decisionPatterns) {
+      let match;
+      while ((match = pattern.exec(output)) !== null) {
+        const fullMatch = match[0].trim();
+        if (fullMatch.length > 10 && fullMatch.length < 500) {
+          decisions.push({
+            title: this.truncate(fullMatch, 100),
+            summary: fullMatch,
+            choice: match[1] || fullMatch,
+            rationale: match[2] || null,
+            confidence: confidence
+          });
+        }
+      }
+    }
+
+    // Deduplicate by summary
+    const unique = [];
+    const seen = new Set();
+    for (const d of decisions) {
+      const key = d.summary.toLowerCase().substring(0, 50);
+      if (!seen.has(key)) {
+        seen.add(key);
+        unique.push(d);
+      }
+    }
+
+    return unique.slice(0, 5); // Limit to 5 decisions per execution
+  }
+
+  /**
+   * Extract discoveries from agent output
+   * @param {string} output - Agent output text
+   * @returns {Array} Extracted discoveries
+   */
+  extractDiscoveriesFromOutput(output) {
+    const discoveries = [];
+    const discoveryPatterns = [
+      { pattern: /discovered (?:that )?(.+?)(?:\.|$)/gi, confidence: 0.7 },
+      { pattern: /found (?:that )?(.+?)(?:\.|$)/gi, confidence: 0.6 },
+      { pattern: /noticed (?:that )?(.+?)(?:\.|$)/gi, confidence: 0.6 },
+      { pattern: /realized (?:that )?(.+?)(?:\.|$)/gi, confidence: 0.7 },
+      { pattern: /pattern:?\s*(.+?)(?:\.|$)/gi, confidence: 0.8 },
+      { pattern: /insight:?\s*(.+?)(?:\.|$)/gi, confidence: 0.8 }
+    ];
+
+    for (const { pattern, confidence } of discoveryPatterns) {
+      let match;
+      while ((match = pattern.exec(output)) !== null) {
+        const fullMatch = match[0].trim();
+        if (fullMatch.length > 15 && fullMatch.length < 500) {
+          discoveries.push({
+            insight: match[1] || fullMatch,
+            summary: fullMatch,
+            pattern: fullMatch.toLowerCase().includes('pattern') ? match[1] : null,
+            confidence: confidence
+          });
+        }
+      }
+    }
+
+    return discoveries.slice(0, 3); // Limit to 3 discoveries per execution
+  }
+
+  /**
+   * Extract blockers from agent output
+   * @param {string} output - Agent output text
+   * @returns {Array} Extracted blockers
+   */
+  extractBlockersFromOutput(output) {
+    const blockers = [];
+    const blockerPatterns = [
+      { pattern: /blocked by (.+?)(?:\.|$)/gi },
+      { pattern: /issue:?\s*(.+?)(?:\.|$)/gi },
+      { pattern: /problem:?\s*(.+?)(?:\.|$)/gi },
+      { pattern: /error:?\s*(.+?)(?:\.|$)/gi },
+      { pattern: /resolved (?:the )?(?:issue|problem|error):?\s*(.+?)(?:\.|$)/gi }
+    ];
+
+    for (const { pattern } of blockerPatterns) {
+      let match;
+      while ((match = pattern.exec(output)) !== null) {
+        const fullMatch = match[0].trim();
+        const isResolved = fullMatch.toLowerCase().includes('resolved');
+
+        if (fullMatch.length > 10 && fullMatch.length < 500) {
+          blockers.push({
+            issue: match[1] || fullMatch,
+            summary: fullMatch,
+            resolved: isResolved,
+            resolution: isResolved ? fullMatch : null
+          });
+        }
+      }
+    }
+
+    return blockers.slice(0, 3); // Limit to 3 blockers per execution
+  }
+
+  /**
+   * Truncate text to specified length
+   * @param {string} text - Text to truncate
+   * @param {number} length - Max length
+   * @returns {string} Truncated text
+   */
+  truncate(text, length) {
+    if (text.length <= length) return text;
+    return text.substring(0, length - 3) + '...';
   }
 
   /**
@@ -221,7 +484,7 @@ class PostExecutionHook {
    * Log execution completion
    */
   async logCompletion(data) {
-    const { executionId, agent, task, duration, success, metrics, warnings } = data;
+    const { executionId, agent, task, duration, success, metrics, warnings, learningsCapture } = data;
 
     const logEntry = {
       executionId,
@@ -231,6 +494,7 @@ class PostExecutionHook {
       success,
       metrics,
       warnings,
+      learningsCapture: learningsCapture || { captured: 0 },
       completedAt: new Date().toISOString()
     };
 
@@ -261,6 +525,17 @@ class PostExecutionHook {
 
     if (warnings.length > 0) {
       console.log(`[Maestro]   Warnings: ${warnings.length}`);
+    }
+
+    // Log learnings capture
+    if (learningsCapture && learningsCapture.captured > 0) {
+      console.log(`[Maestro]   Learnings captured: ${learningsCapture.captured}`);
+      if (learningsCapture.details) {
+        const { decisions, discoveries, blockers } = learningsCapture.details;
+        if (decisions > 0) console.log(`[Maestro]     - Decisions: ${decisions}`);
+        if (discoveries > 0) console.log(`[Maestro]     - Discoveries: ${discoveries}`);
+        if (blockers > 0) console.log(`[Maestro]     - Blockers: ${blockers}`);
+      }
     }
   }
 
