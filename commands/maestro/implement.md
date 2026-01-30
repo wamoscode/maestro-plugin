@@ -33,6 +33,8 @@ Plan Task: "Add user table migration"
 
 **Multi-Project Support**: Execute cross-project tracks across multiple repositories with coordinated commits and submodule handling.
 
+**Worktree Isolation (v1.9)**: When implementing in a worktree, you have complete isolation from other branches. The command automatically detects worktree context and recommends worktrees when parallel work is detected.
+
 ## What It Does
 
 1. **Selects track** - Continues active track or picks next pending
@@ -392,14 +394,31 @@ When this command is invoked, follow this protocol:
 ```
 1. Verify maestro/ directory exists
 
-2. Determine context:
+2. DETECT WORKTREE CONTEXT (NEW in v1.9):
+   - Import WorktreeManager from skills/worktree-manager.js
+   - Call WorktreeManager.detectWorktree()
+
+   If IN WORKTREE:
+     * Log: "Implementing in isolated worktree"
+     * Note main repo path for cross-reference
+     * Worktree provides automatic isolation
+     * No branch switch warnings needed
+
+   If IN MAIN REPO and on feature branch:
+     * Check for other active sessions
+     * If parallel work detected, recommend:
+       "⚠️  Consider using worktree for isolation:
+        /maestro:worktree create {current-branch}
+        This prevents conflicts with other sessions."
+
+3. Determine context:
    - Check for workspace.json → Workspace mode
    - Check for project.json → Project-in-workspace mode
    - Else: Single project mode
 
-3. Verify required files based on mode
+4. Verify required files based on mode
 
-4. If track ID provided:
+5. If track ID provided:
    - Verify track directory exists
    - Verify spec.md and plan.md exist
    - If CROSS-* track: verify it's a workspace

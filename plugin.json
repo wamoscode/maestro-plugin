@@ -1,6 +1,6 @@
 {
   "name": "maestro",
-  "version": "1.9.1",
+  "version": "1.10.0",
   "description": "Master orchestrator plugin with Context-Driven Development methodology, multi-branch parallel sessions, multi-project workspaces, platform sync, git submodule support, 40+ specialized sub-agents, context versioning, quality gates, and intelligent project management",
   "main": "mcp/server.js",
   "author": {
@@ -39,7 +39,10 @@
     "asana",
     "clickup",
     "todoist",
-    "youtrack"
+    "youtrack",
+    "worktree",
+    "git-worktree",
+    "branch-isolation"
   ],
   "engines": {
     "claude-code": ">=1.0.0"
@@ -61,6 +64,7 @@
     "maestro:sync",
     "maestro:branch",
     "maestro:session",
+    "maestro:worktree",
     "workflow",
     "parallel-execute",
     "list-subagents",
@@ -90,7 +94,8 @@
     "branchIsolation": true,
     "sessionLocking": true,
     "crossSessionNotifications": true,
-    "gitignoreAwareContext": true
+    "gitignoreAwareContext": true,
+    "worktreeIsolation": true
   },
   "directories": {
     "commands": "commands",

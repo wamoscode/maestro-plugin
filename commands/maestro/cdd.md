@@ -291,6 +291,28 @@ Multiple Claude Code sessions can work simultaneously on different branches:
 - **Cross-Session Notifications**: Get alerted when other sessions need input
 - **Context Persistence**: Session state survives branch switches
 
+### NEW in v1.9: Git Worktree Isolation (RECOMMENDED)
+
+For **true physical isolation**, use Git worktrees instead of branch switching:
+
+```bash
+# Create isolated worktree for a branch
+/maestro:worktree create feature/auth
+
+# Each worktree is a separate directory:
+~/project/                    → main branch
+~/project-feature-auth/       → feature/auth branch (isolated)
+~/project-hotfix-login/       → hotfix/login branch (isolated)
+```
+
+**Why Worktrees?**
+- Regular `git checkout` affects ALL terminal sessions
+- Worktrees create separate directories - true isolation
+- No session locking needed (physically separate)
+- Each terminal works in its own directory
+
+CDD mode automatically detects and recommends worktrees when parallel work is detected.
+
 ### Branch-Aware Context Structure
 When `maestro/` is gitignored (recommended for multi-branch):
 
@@ -333,9 +355,30 @@ Sessions can notify each other about:
 
 When this command is invoked, follow this protocol:
 
-### Step 0: Branch Detection and Session Lock (NEW in v1.8)
+### Step 0: Worktree Detection and Branch Setup (NEW in v1.9)
 
 ```
+0. DETECT WORKTREE STATUS:
+   - Check if .git is file (worktree) or directory (main repo)
+   - Import WorktreeManager from skills/worktree-manager.js
+   - Call WorktreeManager.detectWorktree()
+
+   If IN WORKTREE:
+     * Note: "Working in isolated worktree"
+     * Get main repo path for reference
+     * Branch is already isolated - no conflicts possible
+     * SKIP session lock (worktrees are physically isolated)
+     * Proceed to Step 1
+
+   If IN MAIN REPO:
+     * Check for other active sessions on other branches
+     * If other sessions exist AND user is on non-main branch:
+       - RECOMMEND worktree for isolation:
+         "⚠️  Other active sessions detected. For true isolation:
+          /maestro:worktree create {current-branch}
+          This prevents branch switches from affecting other terminals."
+     * Continue with standard locking
+
 1. DETECT current git branch:
    - Run: git branch --show-current
    - Fallback: git rev-parse --abbrev-ref HEAD
@@ -346,7 +389,11 @@ When this command is invoked, follow this protocol:
    - If lock exists AND not stale (heartbeat < 5 min):
      * BLOCK with warning message
      * Show lock holder info
+     * RECOMMEND WORKTREE (NEW):
+       "For true isolation, create a worktree instead:
+        /maestro:worktree create {branch}"
      * Suggest alternatives:
+       - Create worktree (RECOMMENDED)
        - Switch to different branch
        - Release stale lock
        - View session details
@@ -358,6 +405,7 @@ When this command is invoked, follow this protocol:
      * sessionId, pid, startedAt
      * user, host, terminal
      * lastHeartbeat timestamp
+     * isWorktree: false (flag for worktree context)
    - Update session registry
 
 4. START heartbeat timer:

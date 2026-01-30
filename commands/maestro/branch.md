@@ -9,6 +9,10 @@ aliases: [br, branches]
 
 Manage CDD (Context-Driven Development) context across git branches. This command enables multiple Claude Code sessions to work simultaneously on different branches with proper isolation and state management.
 
+> **For True Parallel Isolation**: This command uses `git checkout` which affects ALL terminals.
+> If you need completely isolated parallel work (each terminal on a different branch),
+> use `/maestro:worktree` instead. Worktrees create separate directories for each branch.
+
 ## CRITICAL: Mandatory Sub-Agent Usage
 
 **All /maestro commands MUST be processed through specialized sub-agents via the Task tool.**
@@ -33,12 +37,23 @@ Branch management operations typically route to:
 | Subcommand | Description |
 |------------|-------------|
 | `list` | List all branches with CDD context |
-| `switch <branch>` | Switch to a branch with context preservation |
+| `switch <branch>` | Switch to a branch (uses worktree if available, recommends creating one) |
 | `status` | Show current branch's CDD status |
 | `tracks` | List tracks associated with current branch |
 | `init` | Initialize CDD context for current branch |
 | `delete <branch>` | Delete CDD context for a branch |
 | `migrate` | Migrate legacy context to branch-aware structure |
+
+## Automatic Worktree Integration (v1.9)
+
+When you run `/maestro:branch switch`, the command now:
+
+1. **Checks for existing worktree** for the target branch
+2. **If worktree exists**: Provides navigation instructions instead of git checkout
+3. **If no worktree**: Recommends creating one for true isolation
+4. **Only falls back to git checkout** if you explicitly decline worktree
+
+This ensures parallel work in multiple terminals doesn't interfere with each other.
 
 ## Usage Examples
 
@@ -335,17 +350,62 @@ When this command is invoked, follow these steps:
 
 ```
 1. Get target branch name
-2. Check if target branch has CDD context:
+
+2. CHECK FOR EXISTING WORKTREE (NEW in v1.9):
+   - Import WorktreeManager from skills/worktree-manager.js
+   - Call WorktreeManager.listWorktrees()
+   - If worktree exists for target branch:
+     * DO NOT use git checkout
+     * Display worktree navigation instructions:
+       "Worktree for '{branch}' already exists at:
+        {worktree-path}
+
+        Open a NEW terminal and run:
+          cd {worktree-path}
+
+        Then activate CDD:
+          /maestro:cdd"
+     * EXIT (no git checkout needed)
+
+3. CHECK FOR OTHER ACTIVE SESSIONS:
+   - If other sessions are active on different branches:
+     * STRONGLY RECOMMEND creating worktree:
+       "⚠️  Other active sessions detected!
+
+        Creating a worktree provides TRUE isolation:
+          /maestro:worktree create {branch}
+
+        Regular git checkout will affect ALL terminals.
+
+        Create worktree? (Y/n)"
+     * If user confirms: create worktree and exit
+     * If user declines: warn and continue with git checkout
+
+4. Check if target branch has CDD context:
    - If no context exists, offer to initialize
-3. Check for active session lock on target branch:
-   - If locked by another session, show warning and block
-   - If locked by current session, allow (already active)
-4. Release current branch lock (if any)
-5. Perform git checkout (if different branch)
-6. Acquire lock on target branch
-7. Load branch-specific context
-8. Display loaded context summary
+
+5. Check for active session lock on target branch:
+   - If locked by another session:
+     * Show warning with WORKTREE RECOMMENDATION:
+       "Branch locked. Create isolated worktree instead:
+        /maestro:worktree create {branch}"
+     * Block unless --force
+
+6. Release current branch lock (if any)
+
+7. Perform git checkout (ONLY if no worktree and user confirmed)
+   - ⚠️  Display warning: "This will affect ALL terminal sessions"
+
+8. Acquire lock on target branch
+
+9. Load branch-specific context
+
+10. Display loaded context summary
 ```
+
+**AUTOMATIC WORKTREE BEHAVIOR:**
+The command now defaults to worktree isolation. Git checkout is only used as a fallback
+when explicitly chosen by the user.
 
 ### /maestro:branch status
 
