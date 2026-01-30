@@ -1,6 +1,6 @@
 {
   "name": "maestro-mcp",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "description": "MCP server for Maestro plugin - provides advanced orchestration and multi-branch session capabilities",
   "server": {
     "type": "stdio",

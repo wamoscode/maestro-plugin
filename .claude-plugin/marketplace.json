@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Official Maestro plugin marketplace for Claude Code",
-    "version": "1.9.0"
+    "version": "1.9.1"
   },
   "plugins": [
     {
@@ -16,7 +16,7 @@
         "repo": "wamoscode/maestro-plugin"
       },
       "description": "Master orchestrator with Context-Driven Development, multi-branch parallel sessions, platform sync, multi-project workspaces, and 40+ specialized sub-agents",
-      "version": "1.9.0",
+      "version": "1.9.1",
       "author": {
         "name": "Maestro Team"
       },
