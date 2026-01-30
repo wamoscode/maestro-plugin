@@ -110,6 +110,12 @@ When invoked, displays:
 ```markdown
 ## CDD Mode Activated
 
+### Session Info
+- **Session ID**: [generated session ID]
+- **Branch**: [current git branch]
+- **Lock**: Acquired
+- **Repository**: [Main repo or Worktree]
+
 ### Project Context Loaded
 - **Product**: [name from product.md]
 - **Tech Stack**: [summary from tech-stack.md]
@@ -124,6 +130,21 @@ When invoked, displays:
 ### Current Focus
 [Most recent active task or phase]
 
+### Other Active Sessions
+[List of other branches with active CDD sessions, if any]
+
+### Pending Notifications
+[Any cross-session notifications]
+
+### Knowledge System (v1.10.1+)
+┌─────────────────────────────────────────────────────────┐
+│ Knowledge System Initialized                             │
+├─────────────────────────────────────────────────────────┤
+│ Store: X entries (Y decisions, Z patterns, W other)    │
+│ Recent: [Last 2-3 decisions]                            │
+│ Learning: Journal active, Enrichment enabled            │
+└─────────────────────────────────────────────────────────┘
+
 ### CDD Principles Active
 
 - All discussions will update relevant context
@@ -131,6 +152,7 @@ When invoked, displays:
 - Phase checkpoints before advancing
 - Context files reflect current decisions
 - **Sub-agents engaged for every task**
+- **Knowledge system captures decisions automatically** (v1.10.1+)
 
 ### Available Specialists (based on tech stack)
 
@@ -498,6 +520,43 @@ If maestro/workspace.json exists:
   - Note submodule status if applicable
 ```
 
+### Step 4.5: Knowledge System Initialization (v1.10.1+)
+
+```
+Initialize the context-aware learning system BEFORE display:
+
+1. LOAD Knowledge Store:
+   - Ensure maestro/knowledge/ directory exists
+   - Load or build knowledge index for branch
+   - Initialize KnowledgeStore with branch context
+   - Count entries by type
+
+2. INITIALIZE Learning Journal:
+   - Start new journal session with sessionId
+   - Link to current branch and track
+   - Enable real-time capture
+
+3. START Context Enrichment:
+   - Initialize ContextEnrichment engine
+   - Connect to KnowledgeRecall for task enrichment
+   - Enable decision capture triggers
+   - Enable phase completion hooks
+
+4. CONFIGURE Feedback Loop:
+   - Track which knowledge is injected into tasks
+   - Prepare to record outcomes after task completion
+   - Enable success/failure tracking for used knowledge
+
+5. PREPARE Knowledge Summary for display:
+   - Get total entries count
+   - Get breakdown by type (decisions, patterns, other)
+   - Get 2-3 most recent decisions
+   - Determine learning status (active/inactive)
+
+Note: If knowledge directory doesn't exist or is empty,
+display "No knowledge captured yet" instead of stats.
+```
+
 ### Step 5: Display CDD Mode Summary
 
 ```
@@ -506,14 +565,20 @@ Format and display:
      - Session ID
      - Current branch
      - Lock status
+     - Repository type (main repo or worktree)
   2. Project context summary
   3. Active tracks table (sorted by priority)
   4. Current focus (active task)
   5. Other active sessions (NEW in v1.8):
      - List other branches with active sessions
      - Show pending notifications
-  6. CDD principles reminder
-  7. Ready prompt
+  6. Knowledge System status (NEW in v1.10.1):
+     - Knowledge store stats (entries by type)
+     - Recent decisions
+     - Learning journal status
+     - Context enrichment status
+  7. CDD principles reminder
+  8. Ready prompt
 ```
 
 **Example Output with Multi-Branch Info:**
@@ -525,6 +590,7 @@ Format and display:
 - **Session ID**: session-abc123
 - **Branch**: main
 - **Lock**: Acquired
+- **Repository**: Main repo (not worktree)
 
 ### Project Context Loaded
 - **Product**: My Application
@@ -544,6 +610,15 @@ Format and display:
 ### Pending Notifications (1)
 🔔 Session on 'feature/auth' requires input
    "Approve Phase 2 checkpoint for TRACK-002"
+
+### Knowledge System (v1.10.1+)
+┌─────────────────────────────────────────────────────────┐
+│ Knowledge System Initialized                             │
+├─────────────────────────────────────────────────────────┤
+│ Store: 47 entries (12 decisions, 8 patterns, 27 other) │
+│ Recent: "Use JWT for auth", "Prefer functional comps"  │
+│ Learning: Journal active, Enrichment enabled            │
+└─────────────────────────────────────────────────────────┘
 
 Ready for CDD workflow. What would you like to work on?
 ```
@@ -586,52 +661,7 @@ For the remainder of this session:
      - Release lock on session end
 ```
 
-### Step 6.5: Knowledge System Initialization (NEW)
-
-```
-Initialize the context-aware learning system:
-
-1. LOAD Knowledge Store:
-   - Ensure maestro/knowledge/ directory exists
-   - Load or build knowledge index for branch
-   - Initialize KnowledgeStore with branch context
-   - Log: "Knowledge store loaded: X entries"
-
-2. INITIALIZE Learning Journal:
-   - Start new journal session with sessionId
-   - Link to current branch and track
-   - Enable real-time capture
-   - Log: "Learning journal started"
-
-3. START Context Enrichment:
-   - Initialize ContextEnrichment engine
-   - Connect to KnowledgeRecall for task enrichment
-   - Enable decision capture triggers
-   - Enable phase completion hooks
-   - Log: "Context enrichment active"
-
-4. CONFIGURE Feedback Loop:
-   - Track which knowledge is injected into tasks
-   - Prepare to record outcomes after task completion
-   - Enable success/failure tracking for used knowledge
-
-5. DISPLAY Knowledge Summary:
-   - Show knowledge store stats
-   - List recent decisions (last 5)
-   - Show any high-confidence patterns
-   - Indicate learning mode is active
-
-Example Output:
-┌─────────────────────────────────────────────────────────┐
-│ Knowledge System Initialized                             │
-├─────────────────────────────────────────────────────────┤
-│ Store: 47 entries (12 decisions, 8 patterns, 27 other) │
-│ Recent: "Use JWT for auth", "Prefer functional comps"  │
-│ Learning: Journal active, Enrichment enabled            │
-└─────────────────────────────────────────────────────────┘
-```
-
-### Step 6.6: Notification Triggers (NEW in v1.8)
+### Step 6.5: Notification Triggers (v1.8+)
 
 ```
 Fire notification to other sessions when:
