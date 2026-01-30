@@ -12,7 +12,7 @@ const path = require('path');
 const readline = require('readline');
 
 // Import plugin components
-const AgentRouter = require('../hooks/agent-router');
+const { MaestroHooks, AgentRouter } = require('../hooks');
 const TaskAnalyzer = require('../skills/task-analyzer');
 const ResultAggregator = require('../skills/result-aggregator');
 
@@ -28,7 +28,17 @@ try {
 class MaestroMCPServer {
   constructor() {
     this.config = this.loadConfig();
-    this.router = new AgentRouter();
+
+    // Initialize unified hooks manager (includes learning system)
+    this.hooks = new MaestroHooks({
+      enableLearning: true,
+      maestroDir: 'maestro',
+      logDir: '.maestro/logs',
+      metricsDir: '.maestro/metrics'
+    });
+
+    // Use router from hooks for consistency
+    this.router = this.hooks.agentRouter;
     this.analyzer = new TaskAnalyzer();
     this.aggregator = new ResultAggregator();
 
@@ -219,6 +229,9 @@ class MaestroMCPServer {
       case 'get_execution_status':
         return this.toolGetExecutionStatus(args);
 
+      case 'complete_execution':
+        return await this.toolCompleteExecution(args);
+
       case 'get_metrics':
         return this.toolGetMetrics(args);
 
@@ -239,6 +252,25 @@ class MaestroMCPServer {
 
       case 'sync_config':
         return await this.toolSyncConfig(args);
+
+      // Learning system tools
+      case 'learning_init':
+        return this.toolLearningInit(args);
+
+      case 'learning_finalize':
+        return this.toolLearningFinalize(args);
+
+      case 'learning_status':
+        return this.toolLearningStatus(args);
+
+      case 'learning_capture':
+        return this.toolLearningCapture(args);
+
+      case 'learning_get_knowledge':
+        return this.toolLearningGetKnowledge(args);
+
+      case 'learning_phase_complete':
+        return this.toolLearningPhaseComplete(args);
 
       default:
         throw new Error(`Unknown tool: ${name}`);
@@ -345,6 +377,27 @@ class MaestroMCPServer {
       workflow = { steps: [{ task: args.workflow }] };
     }
 
+    // Create execution context
+    const context = {
+      executionId,
+      workflow,
+      variables: args.variables || {},
+      task: workflow.task || workflow.steps?.[0]?.task || 'workflow execution',
+      trackId: args.trackId,
+      taskId: args.taskId
+    };
+
+    // Execute pre-execution hook (injects knowledge if learning is active)
+    let preResult = { success: true };
+    try {
+      preResult = await this.hooks.beforeExecution(context);
+      if (preResult.knowledgeInjection) {
+        context.injectedKnowledge = preResult.knowledgeInjection;
+      }
+    } catch (error) {
+      console.error('Pre-execution hook error:', error.message);
+    }
+
     // Store execution
     this.executions.set(executionId, {
       id: executionId,
@@ -352,11 +405,13 @@ class MaestroMCPServer {
       variables: args.variables || {},
       status: 'pending',
       startTime: Date.now(),
-      steps: []
+      steps: [],
+      preExecutionResult: preResult,
+      injectedKnowledge: context.injectedKnowledge
     });
 
     // Note: Actual execution would be async and involve sub-agent invocation
-    // This is a placeholder that returns the execution plan
+    // The post-execution hook should be called when execution completes
 
     return {
       content: [{
@@ -365,9 +420,52 @@ class MaestroMCPServer {
           executionId,
           status: 'created',
           message: 'Workflow execution queued',
-          workflow
+          workflow,
+          learningActive: this.hooks.isLearningActive(),
+          knowledgeInjected: !!context.injectedKnowledge
         }, null, 2)
       }]
+    };
+  }
+
+  /**
+   * Complete workflow execution and run post-execution hooks
+   */
+  async completeWorkflowExecution(executionId, results) {
+    const execution = this.executions.get(executionId);
+    if (!execution) {
+      throw new Error(`Execution not found: ${executionId}`);
+    }
+
+    // Create context with results
+    const context = {
+      executionId,
+      workflow: execution.workflow,
+      variables: execution.variables,
+      results,
+      success: results.success !== false,
+      duration: Date.now() - execution.startTime
+    };
+
+    // Execute post-execution hook (captures decisions if learning is active)
+    let postResult = { success: true };
+    try {
+      postResult = await this.hooks.afterExecution(context);
+    } catch (error) {
+      console.error('Post-execution hook error:', error.message);
+    }
+
+    // Update execution record
+    execution.status = results.success !== false ? 'completed' : 'failed';
+    execution.endTime = Date.now();
+    execution.results = results;
+    execution.postExecutionResult = postResult;
+
+    return {
+      executionId,
+      status: execution.status,
+      duration: context.duration,
+      learningCaptured: postResult.decisionsCaptures || 0
     };
   }
 
@@ -397,6 +495,32 @@ class MaestroMCPServer {
       content: [{
         type: 'text',
         text: JSON.stringify(execution, null, 2)
+      }]
+    };
+  }
+
+  /**
+   * Tool: Complete execution and run post-hooks
+   */
+  async toolCompleteExecution(args) {
+    const { executionId, results } = args;
+
+    if (!executionId) {
+      throw new Error('Execution ID is required');
+    }
+
+    const completionResult = await this.completeWorkflowExecution(
+      executionId,
+      results || { success: true }
+    );
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          action: 'complete_execution',
+          ...completionResult
+        }, null, 2)
       }]
     };
   }
@@ -779,6 +903,158 @@ class MaestroMCPServer {
     };
   }
 
+  // ==========================================
+  // Learning System Tools
+  // ==========================================
+
+  /**
+   * Tool: Initialize learning session
+   */
+  toolLearningInit(args) {
+    const { branch, sessionId, options = {} } = args;
+
+    if (!branch) {
+      throw new Error('Branch name is required');
+    }
+
+    const result = this.hooks.initializeLearningSession(
+      branch,
+      sessionId || `session_${Date.now()}`,
+      options
+    );
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          action: 'learning_init',
+          ...result
+        }, null, 2)
+      }]
+    };
+  }
+
+  /**
+   * Tool: Finalize learning session
+   */
+  toolLearningFinalize(args) {
+    const { options = {} } = args;
+
+    const result = this.hooks.finalizeLearningSession(options);
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          action: 'learning_finalize',
+          ...result
+        }, null, 2)
+      }]
+    };
+  }
+
+  /**
+   * Tool: Get learning session status
+   */
+  toolLearningStatus(args) {
+    const isActive = this.hooks.isLearningActive();
+    const summary = this.hooks.getLearningSessionSummary();
+    const pendingEnrichments = this.hooks.getPendingEnrichments();
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          action: 'learning_status',
+          active: isActive,
+          summary: summary || 'No active session',
+          pendingEnrichments: pendingEnrichments.length
+        }, null, 2)
+      }]
+    };
+  }
+
+  /**
+   * Tool: Capture learning (decision, research, or discovery)
+   */
+  toolLearningCapture(args) {
+    const { type, data } = args;
+
+    if (!type || !data) {
+      throw new Error('Type and data are required');
+    }
+
+    let result;
+    switch (type) {
+      case 'decision':
+        result = this.hooks.captureDecision(data);
+        break;
+      case 'research':
+        result = this.hooks.captureResearch(data);
+        break;
+      case 'discovery':
+        result = this.hooks.captureDiscovery(data);
+        break;
+      default:
+        throw new Error(`Unknown capture type: ${type}`);
+    }
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          action: 'learning_capture',
+          type,
+          ...result
+        }, null, 2)
+      }]
+    };
+  }
+
+  /**
+   * Tool: Get knowledge for task context
+   */
+  toolLearningGetKnowledge(args) {
+    const { taskContext = {} } = args;
+
+    const knowledge = this.hooks.getKnowledgeInjection(taskContext);
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          action: 'learning_get_knowledge',
+          hasKnowledge: !!knowledge,
+          knowledge: knowledge || 'No relevant knowledge found'
+        }, null, 2)
+      }]
+    };
+  }
+
+  /**
+   * Tool: Handle phase completion
+   */
+  toolLearningPhaseComplete(args) {
+    const { phase, track } = args;
+
+    if (!phase) {
+      throw new Error('Phase information is required');
+    }
+
+    const result = this.hooks.onPhaseCompletion(phase, track || {});
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          action: 'learning_phase_complete',
+          phase: phase.name || phase.id || phase,
+          ...result
+        }, null, 2)
+      }]
+    };
+  }
+
   /**
    * Handle resources/list request
    */
@@ -899,6 +1175,49 @@ class MaestroMCPServer {
           uri,
           mimeType: 'application/json',
           text: JSON.stringify({ links: [] })
+        }]
+      };
+    }
+
+    // Learning system resources
+    if (uri === 'maestro://learning/status') {
+      const isActive = this.hooks.isLearningActive();
+      const summary = this.hooks.getLearningSessionSummary();
+
+      return {
+        contents: [{
+          uri,
+          mimeType: 'application/json',
+          text: JSON.stringify({
+            active: isActive,
+            summary: summary || null
+          }, null, 2)
+        }]
+      };
+    }
+
+    if (uri === 'maestro://learning/knowledge') {
+      const projectRoot = process.cwd();
+      const knowledgePath = path.join(projectRoot, 'maestro', 'knowledge', 'index.json');
+
+      if (fs.existsSync(knowledgePath)) {
+        return {
+          contents: [{
+            uri,
+            mimeType: 'application/json',
+            text: fs.readFileSync(knowledgePath, 'utf8')
+          }]
+        };
+      }
+
+      return {
+        contents: [{
+          uri,
+          mimeType: 'application/json',
+          text: JSON.stringify({
+            entries: [],
+            message: 'No knowledge stored yet'
+          })
         }]
       };
     }
