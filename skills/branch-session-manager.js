@@ -783,10 +783,131 @@ class BranchSessionManager {
    Terminal: ${lockData.terminal}
 
    Options:
-   1. Switch to a different branch: /maestro:branch switch <other-branch>
-   2. View session details: /maestro:session info ${lockData.sessionId}
-   3. Release stale lock: /maestro:session release ${branch} --force
+   1. Use WORKTREE for true isolation (RECOMMENDED):
+      /maestro:worktree create ${branch}
+      This creates a separate directory for this branch.
+
+   2. Switch to a different branch:
+      /maestro:branch switch <other-branch>
+
+   3. View session details:
+      /maestro:session info ${lockData.sessionId}
+
+   4. Release stale lock (use with caution):
+      /maestro:session release ${branch} --force
 `;
+  }
+
+  /**
+   * Check if worktrees should be recommended for parallel work
+   * @param {string} targetBranch - Branch user wants to work on
+   * @returns {Object} Worktree recommendation
+   */
+  recommendWorktreeForParallelWork(targetBranch) {
+    const sessions = this.listSessions();
+    const currentBranch = this.getCurrentBranch();
+
+    // Check if there are other active sessions
+    const otherActiveSessions = sessions.sessions.filter(s =>
+      s.status === 'active' && s.branch !== currentBranch
+    );
+
+    if (otherActiveSessions.length > 0) {
+      return {
+        recommend: true,
+        reason: 'parallel_sessions_detected',
+        message: `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PARALLEL WORK DETECTED - WORKTREE RECOMMENDED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+You have ${otherActiveSessions.length} other active session(s).
+
+Regular branch switching affects ALL terminals. For true isolation
+where each terminal works on a different branch independently,
+use Git worktrees:
+
+  /maestro:worktree create ${targetBranch}
+
+This creates a separate directory for '${targetBranch}', giving you
+complete physical isolation from other branches.
+
+Current active sessions:
+${otherActiveSessions.map(s => `  - ${s.branch} (${s.sessionId})`).join('\n')}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+`,
+        otherSessions: otherActiveSessions,
+        suggestedCommand: `/maestro:worktree create ${targetBranch}`
+      };
+    }
+
+    return {
+      recommend: false,
+      reason: 'no_parallel_sessions',
+      message: 'No other active sessions detected.'
+    };
+  }
+
+  /**
+   * Check if current working directory is a worktree
+   * @returns {Object} Worktree detection result
+   */
+  detectWorktree() {
+    try {
+      // Check if .git is a file (worktree) or directory (main repo)
+      const gitPath = path.join(process.cwd(), '.git');
+
+      if (!fs.existsSync(gitPath)) {
+        return {
+          isWorktree: false,
+          isGitRepo: false,
+          message: 'Not in a git repository'
+        };
+      }
+
+      const gitStats = fs.statSync(gitPath);
+
+      if (gitStats.isFile()) {
+        // This is a worktree - .git is a file pointing to main repo
+        const gitContent = fs.readFileSync(gitPath, 'utf8').trim();
+        const match = gitContent.match(/^gitdir: (.+)$/);
+
+        if (match) {
+          const gitDir = match[1];
+          // Extract main repo path from gitdir
+          const mainRepoMatch = gitDir.match(/(.+)\/\.git\/worktrees\//);
+          const mainRepoPath = mainRepoMatch ? mainRepoMatch[1] : null;
+
+          return {
+            isWorktree: true,
+            isGitRepo: true,
+            gitDir: gitDir,
+            mainRepoPath: mainRepoPath,
+            currentPath: process.cwd(),
+            currentBranch: this.getCurrentBranch(),
+            message: 'Currently in a git worktree'
+          };
+        }
+      }
+
+      // This is the main repository
+      return {
+        isWorktree: false,
+        isGitRepo: true,
+        currentPath: process.cwd(),
+        currentBranch: this.getCurrentBranch(),
+        message: 'Currently in main repository'
+      };
+
+    } catch (error) {
+      return {
+        isWorktree: false,
+        isGitRepo: false,
+        error: error.message,
+        message: `Failed to detect worktree: ${error.message}`
+      };
+    }
   }
 
   /**

@@ -39,7 +39,10 @@
     "asana",
     "clickup",
     "todoist",
-    "youtrack"
+    "youtrack",
+    "worktree",
+    "git-worktree",
+    "branch-isolation"
   ],
   "engines": {
     "claude-code": ">=1.0.0"
@@ -61,6 +64,7 @@
     "maestro:sync",
     "maestro:branch",
     "maestro:session",
+    "maestro:worktree",
     "workflow",
     "parallel-execute",
     "list-subagents",
@@ -90,7 +94,8 @@
     "branchIsolation": true,
     "sessionLocking": true,
     "crossSessionNotifications": true,
-    "gitignoreAwareContext": true
+    "gitignoreAwareContext": true,
+    "worktreeIsolation": true
   },
   "directories": {
     "commands": "commands",
