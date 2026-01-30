@@ -105,6 +105,8 @@ Every task in CDD mode leverages specialized sub-agents:
 
 ## Output
 
+**MANDATORY: The Knowledge System section MUST ALWAYS be displayed when activating CDD mode.**
+
 When invoked, displays:
 
 ```markdown
@@ -115,6 +117,27 @@ When invoked, displays:
 - **Branch**: [current git branch]
 - **Lock**: Acquired
 - **Repository**: [Main repo or Worktree]
+
+### 🧠 Knowledge System Status [REQUIRED - ALWAYS DISPLAY]
+┌──────────────────────────────────────────────────────────┐
+│ 🧠 KNOWLEDGE SYSTEM                                       │
+├──────────────────────────────────────────────────────────┤
+│ Status: Initialized ✓                                    │
+│ Store: X entries (Y decisions, Z patterns, W other)     │
+│ Recent Decisions:                                        │
+│   • [Most recent decision title]                         │
+│   • [Second most recent]                                 │
+│ Learning: Journal active, Enrichment enabled             │
+└──────────────────────────────────────────────────────────┘
+
+Note: If no knowledge exists yet, display:
+┌──────────────────────────────────────────────────────────┐
+│ 🧠 KNOWLEDGE SYSTEM                                       │
+├──────────────────────────────────────────────────────────┤
+│ Status: Initialized ✓                                    │
+│ Store: Empty (no knowledge captured yet)                 │
+│ Learning: Journal active, ready to capture decisions     │
+└──────────────────────────────────────────────────────────┘
 
 ### Project Context Loaded
 - **Product**: [name from product.md]
@@ -136,15 +159,6 @@ When invoked, displays:
 ### Pending Notifications
 [Any cross-session notifications]
 
-### Knowledge System (v1.10.1+)
-┌─────────────────────────────────────────────────────────┐
-│ Knowledge System Initialized                             │
-├─────────────────────────────────────────────────────────┤
-│ Store: X entries (Y decisions, Z patterns, W other)    │
-│ Recent: [Last 2-3 decisions]                            │
-│ Learning: Journal active, Enrichment enabled            │
-└─────────────────────────────────────────────────────────┘
-
 ### CDD Principles Active
 
 - All discussions will update relevant context
@@ -152,7 +166,7 @@ When invoked, displays:
 - Phase checkpoints before advancing
 - Context files reflect current decisions
 - **Sub-agents engaged for every task**
-- **Knowledge system captures decisions automatically** (v1.10.1+)
+- **🧠 Knowledge system captures decisions automatically**
 
 ### Available Specialists (based on tech stack)
 
@@ -560,25 +574,42 @@ display "No knowledge captured yet" instead of stats.
 ### Step 5: Display CDD Mode Summary
 
 ```
-Format and display:
-  1. Session info (NEW in v1.8):
+Format and display IN THIS ORDER:
+
+  1. Session info:
      - Session ID
      - Current branch
      - Lock status
      - Repository type (main repo or worktree)
-  2. Project context summary
-  3. Active tracks table (sorted by priority)
-  4. Current focus (active task)
-  5. Other active sessions (NEW in v1.8):
+
+  2. 🧠 KNOWLEDGE SYSTEM STATUS [MANDATORY - MUST DISPLAY]:
+     ┌──────────────────────────────────────────────────────────┐
+     │ 🧠 KNOWLEDGE SYSTEM                                       │
+     ├──────────────────────────────────────────────────────────┤
+     │ Status: Initialized ✓                                    │
+     │ Store: X entries (Y decisions, Z patterns, W other)     │
+     │ Recent Decisions: [list 2-3]                             │
+     │ Learning: Journal active, Enrichment enabled             │
+     └──────────────────────────────────────────────────────────┘
+
+     THIS SECTION IS REQUIRED. If knowledge store is empty, show:
+     "Store: Empty (no knowledge captured yet)"
+
+  3. Project context summary
+
+  4. Active tracks table (sorted by priority)
+
+  5. Current focus (active task)
+
+  6. Other active sessions:
      - List other branches with active sessions
      - Show pending notifications
-  6. Knowledge System status (NEW in v1.10.1):
-     - Knowledge store stats (entries by type)
-     - Recent decisions
-     - Learning journal status
-     - Context enrichment status
-  7. CDD principles reminder
-  8. Ready prompt
+
+  7. CDD principles reminder (include "🧠 Knowledge system captures decisions")
+
+  8. Available specialists
+
+  9. Ready prompt
 ```
 
 **Example Output with Multi-Branch Info:**
@@ -591,6 +622,18 @@ Format and display:
 - **Branch**: main
 - **Lock**: Acquired
 - **Repository**: Main repo (not worktree)
+
+### 🧠 Knowledge System [ALWAYS DISPLAY THIS SECTION]
+┌──────────────────────────────────────────────────────────┐
+│ 🧠 KNOWLEDGE SYSTEM                                       │
+├──────────────────────────────────────────────────────────┤
+│ Status: Initialized ✓                                    │
+│ Store: 47 entries (12 decisions, 8 patterns, 27 other)  │
+│ Recent Decisions:                                        │
+│   • Use JWT for authentication                           │
+│   • Prefer functional components                         │
+│ Learning: Journal active, Enrichment enabled             │
+└──────────────────────────────────────────────────────────┘
 
 ### Project Context Loaded
 - **Product**: My Application
@@ -611,14 +654,11 @@ Format and display:
 🔔 Session on 'feature/auth' requires input
    "Approve Phase 2 checkpoint for TRACK-002"
 
-### Knowledge System (v1.10.1+)
-┌─────────────────────────────────────────────────────────┐
-│ Knowledge System Initialized                             │
-├─────────────────────────────────────────────────────────┤
-│ Store: 47 entries (12 decisions, 8 patterns, 27 other) │
-│ Recent: "Use JWT for auth", "Prefer functional comps"  │
-│ Learning: Journal active, Enrichment enabled            │
-└─────────────────────────────────────────────────────────┘
+### CDD Principles Active
+- All discussions will update relevant context
+- Track structure: spec.md -> plan.md -> implementation
+- Phase checkpoints before advancing
+- **🧠 Knowledge system captures decisions automatically**
 
 Ready for CDD workflow. What would you like to work on?
 ```
