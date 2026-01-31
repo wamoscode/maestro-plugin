@@ -65,6 +65,7 @@
     "maestro:branch",
     "maestro:session",
     "maestro:worktree",
+    "maestro:hydrate",
     "workflow",
     "parallel-execute",
     "list-subagents",
@@ -95,7 +96,10 @@
     "sessionLocking": true,
     "crossSessionNotifications": true,
     "gitignoreAwareContext": true,
-    "worktreeIsolation": true
+    "worktreeIsolation": true,
+    "knowledgeHydration": true,
+    "gitHistoryAnalysis": true,
+    "retrospectiveTracks": true
   },
   "directories": {
     "commands": "commands",

@@ -34,6 +34,15 @@ try {
   CDDActivator = null;
 }
 
+// Import Hydration Manager
+let HydrationManager;
+try {
+  HydrationManager = require('../skills/hydration-manager');
+} catch (e) {
+  // Hydration Manager not available
+  HydrationManager = null;
+}
+
 class MaestroMCPServer {
   constructor() {
     this.config = this.loadConfig();
@@ -64,6 +73,14 @@ class MaestroMCPServer {
       this.cddActivator = new CDDActivator({
         maestroDir: 'maestro',
         enableLearning: true
+      });
+    }
+
+    // Initialize hydration manager if available
+    this.hydrationManager = null;
+    if (HydrationManager) {
+      this.hydrationManager = new HydrationManager({
+        maestroDir: 'maestro'
       });
     }
   }
@@ -305,6 +322,13 @@ class MaestroMCPServer {
 
       case 'generate_diagram':
         return this.toolGenerateDiagram(args);
+
+      // Hydration tools
+      case 'hydrate_knowledge':
+        return await this.toolHydrateKnowledge(args);
+
+      case 'hydrate_status':
+        return this.toolHydrateStatus(args);
 
       default:
         throw new Error(`Unknown tool: ${name}`);
@@ -1680,6 +1704,160 @@ class MaestroMCPServer {
    */
   sanitizeId(id) {
     return id.replace(/[^a-zA-Z0-9]/g, '_');
+  }
+
+  // ==========================================
+  // Hydration Tools
+  // ==========================================
+
+  /**
+   * Tool: Hydrate knowledge from git history
+   */
+  async toolHydrateKnowledge(args) {
+    if (!this.hydrationManager) {
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            action: 'hydrate_knowledge',
+            success: false,
+            error: 'Hydration manager not available',
+            message: 'The hydration system is not properly initialized'
+          }, null, 2)
+        }]
+      };
+    }
+
+    const {
+      mode = 'full',
+      since = null,
+      until = null,
+      branches = null,
+      maxCommits = null,
+      skipMergeCommits = false,
+      includeGitHub = true,
+      dryRun = false,
+      repos = null,
+      noSubmodules = false,
+      submodulesOnly = false,
+      createTracks = false,
+      minConfidence = 0.5
+    } = args;
+
+    try {
+      const options = {
+        mode,
+        since,
+        until,
+        branches: branches || ['HEAD'],
+        maxCommits,
+        skipMergeCommits,
+        includeGitHub,
+        repos,
+        noSubmodules,
+        submodulesOnly,
+        createTracks,
+        minConfidence
+      };
+
+      // Preview mode
+      if (dryRun || mode === 'preview') {
+        const preview = await this.hydrationManager.preview(options);
+
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify({
+              action: 'hydrate_knowledge',
+              mode: 'preview',
+              success: true,
+              preview
+            }, null, 2)
+          }]
+        };
+      }
+
+      // Execute hydration with progress tracking
+      const progressUpdates = [];
+      const result = await this.hydrationManager.hydrate(options, (progress) => {
+        progressUpdates.push({
+          timestamp: new Date().toISOString(),
+          ...progress
+        });
+      });
+
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            action: 'hydrate_knowledge',
+            ...result,
+            progressUpdates: progressUpdates.length > 10
+              ? progressUpdates.slice(-10) // Keep last 10 updates
+              : progressUpdates
+          }, null, 2)
+        }]
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            action: 'hydrate_knowledge',
+            success: false,
+            error: error.message,
+            stack: error.stack
+          }, null, 2)
+        }]
+      };
+    }
+  }
+
+  /**
+   * Tool: Get hydration status
+   */
+  toolHydrateStatus(args) {
+    if (!this.hydrationManager) {
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            action: 'hydrate_status',
+            success: false,
+            error: 'Hydration manager not available',
+            message: 'The hydration system is not properly initialized'
+          }, null, 2)
+        }]
+      };
+    }
+
+    try {
+      const status = this.hydrationManager.getStatus();
+      const formatted = this.hydrationManager.getFormattedStatus();
+
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            action: 'hydrate_status',
+            success: true,
+            status,
+            formatted
+          }, null, 2)
+        }]
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            action: 'hydrate_status',
+            success: false,
+            error: error.message
+          }, null, 2)
+        }]
+      };
+    }
   }
 
   /**
