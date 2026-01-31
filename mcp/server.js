@@ -1923,6 +1923,11 @@ class MaestroMCPServer {
   }
 }
 
-// Start server
-const server = new MaestroMCPServer();
-server.start();
+// Export for testing
+module.exports = MaestroMCPServer;
+
+// Start server if run directly
+if (require.main === module) {
+  const server = new MaestroMCPServer();
+  server.start();
+}
