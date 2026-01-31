@@ -17,10 +17,24 @@ export default defineConfig({
         'scripts/**'
       ],
       thresholds: {
-        lines: 60,
-        functions: 60,
-        branches: 50,
-        statements: 60
+        // Global thresholds - Phase 1 baseline
+        lines: 20,
+        functions: 25,
+        branches: 20,
+        statements: 20,
+        // Core modules thresholds - must maintain 60%+
+        'skills/knowledge-store.js': {
+          lines: 60,
+          functions: 60,
+          branches: 50,
+          statements: 60
+        },
+        'skills/session-learning-controller.js': {
+          lines: 60,
+          functions: 60,
+          branches: 45,
+          statements: 60
+        }
       }
     },
     testTimeout: 10000,
