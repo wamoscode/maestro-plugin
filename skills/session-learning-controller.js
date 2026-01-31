@@ -464,7 +464,9 @@ class SessionLearningController {
     // Sort by priority then date
     const priorityOrder = { high: 0, medium: 1, low: 2 };
     pending.sort((a, b) => {
-      const pDiff = (priorityOrder[a.priority] || 1) - (priorityOrder[b.priority] || 1);
+      const aPriority = priorityOrder[a.priority] ?? 1;
+      const bPriority = priorityOrder[b.priority] ?? 1;
+      const pDiff = aPriority - bPriority;
       if (pDiff !== 0) return pDiff;
       return new Date(a.timestamp) - new Date(b.timestamp);
     });
