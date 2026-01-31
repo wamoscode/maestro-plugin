@@ -81,10 +81,57 @@ jobs:
           done
           echo "All JavaScript files have valid syntax"
 
+      - name: Check version consistency
+        run: |
+          PLUGIN_VERSION=$(jq -r '.version' plugin.json)
+          PACKAGE_VERSION=$(jq -r '.version' package.json)
+
+          if [ "$PLUGIN_VERSION" != "$PACKAGE_VERSION" ]; then
+            echo "Version mismatch: plugin.json ($PLUGIN_VERSION) != package.json ($PACKAGE_VERSION)"
+            exit 1
+          fi
+          echo "Version consistent: $PLUGIN_VERSION"
+
       - name: Count agents
         run: |
           TOTAL=$(find subagents -name "*.md" -not -name "maestro.md" | wc -l)
           echo "Total agents: $TOTAL"
+
+  test:
+    runs-on: ubuntu-latest
+    needs: validate
+
+    strategy:
+      matrix:
+        node-version: [18, 20]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Run tests with coverage
+        if: matrix.node-version == 20
+        run: npm run test:coverage
+
+      - name: Upload coverage report
+        if: matrix.node-version == 20
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
 
   test-mcp:
     runs-on: ubuntu-latest
@@ -103,3 +150,37 @@ jobs:
         run: |
           timeout 5 node mcp/server.js < /dev/null || true
           echo "MCP server initialization test passed"
+
+  release-check:
+    runs-on: ubuntu-latest
+    needs: [validate, test, test-mcp]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check if version changed
+        id: version
+        run: |
+          CURRENT_VERSION=$(jq -r '.version' package.json)
+          git fetch --tags
+          if git rev-parse "v$CURRENT_VERSION" >/dev/null 2>&1; then
+            echo "Version $CURRENT_VERSION already tagged"
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "New version: $CURRENT_VERSION"
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Validation summary
+        run: |
+          echo "## Validation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- All JSON files are valid" >> $GITHUB_STEP_SUMMARY
+          echo "- All agent files exist" >> $GITHUB_STEP_SUMMARY
+          echo "- All JavaScript files have valid syntax" >> $GITHUB_STEP_SUMMARY
+          echo "- Tests passed on Node.js 18 and 20" >> $GITHUB_STEP_SUMMARY
+          echo "- MCP server initializes correctly" >> $GITHUB_STEP_SUMMARY
+          echo "- Versions are consistent" >> $GITHUB_STEP_SUMMARY

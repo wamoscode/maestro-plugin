@@ -8,7 +8,17 @@
     "install-plugin": "./scripts/install.sh",
     "sync-agents": "./scripts/sync-agents.sh",
     "validate": "./scripts/validate.sh",
-    "test": "echo \"No tests configured yet\""
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui",
+    "lint:commits": "commitlint --from HEAD~1 --to HEAD",
+    "release": "release-it",
+    "release:dry": "release-it --dry-run",
+    "release:patch": "release-it patch",
+    "release:minor": "release-it minor",
+    "release:major": "release-it major",
+    "sync-versions": "node scripts/sync-versions.js"
   },
   "keywords": [
     "claude-code",
@@ -66,5 +76,14 @@
     "mcp/",
     "README.md",
     "LICENSE"
-  ]
+  ],
+  "devDependencies": {
+    "vitest": "^2.1.0",
+    "@vitest/coverage-v8": "^2.1.0",
+    "@vitest/ui": "^2.1.0",
+    "@commitlint/cli": "^19.0.0",
+    "@commitlint/config-conventional": "^19.0.0",
+    "release-it": "^17.0.0",
+    "@release-it/conventional-changelog": "^8.0.0"
+  }
 }

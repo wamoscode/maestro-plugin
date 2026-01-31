@@ -1,6 +1,6 @@
 {
   "name": "maestro-mcp",
-  "version": "1.10.4",
+  "version": "1.11.0",
   "description": "MCP server for Maestro plugin - provides advanced orchestration and multi-branch session capabilities",
   "server": {
     "type": "stdio",
@@ -349,6 +349,19 @@
           }
         },
         "required": ["phase"]
+      }
+    },
+    {
+      "name": "health_check",
+      "description": "Check the health status of the Maestro system including knowledge store, sync engine, and learning session",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "verbose": {
+            "type": "boolean",
+            "description": "Include detailed component information"
+          }
+        }
       }
     }
   ],

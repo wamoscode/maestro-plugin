@@ -294,6 +294,9 @@ class MaestroMCPServer {
       case 'learning_phase_complete':
         return this.toolLearningPhaseComplete(args);
 
+      case 'health_check':
+        return this.toolHealthCheck(args);
+
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -1127,6 +1130,129 @@ class MaestroMCPServer {
           phase: phase.name || phase.id || phase,
           ...result
         }, null, 2)
+      }]
+    };
+  }
+
+  /**
+   * Tool: Health check
+   */
+  toolHealthCheck(args) {
+    const verbose = args.verbose || false;
+    const startTime = Date.now();
+
+    const health = {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      version: this.config.version,
+      components: {}
+    };
+
+    // Check learning system
+    try {
+      const learningActive = this.hooks.isLearningActive();
+      const learningSummary = learningActive ? this.hooks.getLearningSessionSummary() : null;
+
+      health.components.learning = {
+        status: 'healthy',
+        active: learningActive,
+        sessionId: learningSummary?.sessionId || null,
+        branch: learningSummary?.branch || null
+      };
+
+      if (verbose && learningSummary) {
+        health.components.learning.stats = learningSummary.stats;
+        health.components.learning.knowledgeStats = learningSummary.knowledgeStats;
+      }
+    } catch (error) {
+      health.components.learning = {
+        status: 'error',
+        error: error.message
+      };
+      health.status = 'degraded';
+    }
+
+    // Check sync engine
+    try {
+      if (this.syncEngine) {
+        health.components.sync = {
+          status: 'healthy',
+          available: true,
+          platforms: this.syncEngine.getEnabledPlatforms ? this.syncEngine.getEnabledPlatforms() : []
+        };
+      } else {
+        health.components.sync = {
+          status: 'healthy',
+          available: false,
+          message: 'Sync engine not configured'
+        };
+      }
+    } catch (error) {
+      health.components.sync = {
+        status: 'error',
+        error: error.message
+      };
+      health.status = 'degraded';
+    }
+
+    // Check CDD activator
+    try {
+      health.components.cdd = {
+        status: 'healthy',
+        available: !!this.cddActivator
+      };
+
+      if (verbose && this.cddActivator) {
+        health.components.cdd.active = this.cddActivator.isActive ? this.cddActivator.isActive() : false;
+      }
+    } catch (error) {
+      health.components.cdd = {
+        status: 'error',
+        error: error.message
+      };
+      health.status = 'degraded';
+    }
+
+    // Check agent router
+    try {
+      const agents = this.router.getAllAgents();
+      health.components.agents = {
+        status: 'healthy',
+        totalAgents: agents.length,
+        categories: [...new Set(agents.map(a => a.categoryId))].length
+      };
+    } catch (error) {
+      health.components.agents = {
+        status: 'error',
+        error: error.message
+      };
+      health.status = 'degraded';
+    }
+
+    // Memory usage
+    if (verbose) {
+      const memUsage = process.memoryUsage();
+      health.memory = {
+        heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024) + ' MB',
+        heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024) + ' MB',
+        rss: Math.round(memUsage.rss / 1024 / 1024) + ' MB'
+      };
+    }
+
+    // Active executions
+    health.executions = {
+      active: this.executions.size,
+      workflows: this.workflows.size
+    };
+
+    // Response time
+    health.responseTime = Date.now() - startTime + 'ms';
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify(health, null, 2)
       }]
     };
   }
