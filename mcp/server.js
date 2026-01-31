@@ -297,6 +297,15 @@ class MaestroMCPServer {
       case 'health_check':
         return this.toolHealthCheck(args);
 
+      case 'kb_backup':
+        return await this.toolKbBackup(args);
+
+      case 'kb_restore':
+        return await this.toolKbRestore(args);
+
+      case 'generate_diagram':
+        return this.toolGenerateDiagram(args);
+
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -1255,6 +1264,422 @@ class MaestroMCPServer {
         text: JSON.stringify(health, null, 2)
       }]
     };
+  }
+
+  /**
+   * Tool: Knowledge backup
+   */
+  async toolKbBackup(args) {
+    const { outputPath, branch, includeIndex } = args;
+    const projectRoot = process.cwd();
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+
+    try {
+      // Initialize knowledge store if needed
+      const KnowledgeStore = require('../skills/knowledge-store');
+      const store = new KnowledgeStore({
+        maestroDir: path.join(projectRoot, 'maestro')
+      });
+
+      // Export all knowledge
+      const exportResult = store.exportAll(branch || null);
+
+      if (!exportResult.success) {
+        throw new Error(exportResult.message);
+      }
+
+      // Build backup data
+      const backup = {
+        version: '1.0.0',
+        createdAt: new Date().toISOString(),
+        branch: branch || 'global',
+        maestroVersion: this.config.version,
+        entries: exportResult.entries,
+        totalEntries: exportResult.total,
+        stats: store.getStats(branch || null)
+      };
+
+      // Include index if requested
+      if (includeIndex) {
+        backup.index = store.loadIndex(branch || null);
+      }
+
+      // Determine output path
+      const backupDir = path.join(projectRoot, 'maestro', 'backups');
+      if (!fs.existsSync(backupDir)) {
+        fs.mkdirSync(backupDir, { recursive: true });
+      }
+
+      const fileName = `kb-backup-${branch || 'global'}-${timestamp}.json`;
+      const filePath = outputPath || path.join(backupDir, fileName);
+
+      // Write backup file
+      fs.writeFileSync(filePath, JSON.stringify(backup, null, 2), 'utf8');
+
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            action: 'kb_backup',
+            success: true,
+            path: filePath,
+            branch: branch || 'global',
+            entriesBackedUp: backup.totalEntries,
+            stats: backup.stats,
+            message: `Knowledge backup created at ${filePath}`
+          }, null, 2)
+        }]
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            action: 'kb_backup',
+            success: false,
+            error: error.message
+          }, null, 2)
+        }]
+      };
+    }
+  }
+
+  /**
+   * Tool: Knowledge restore
+   */
+  async toolKbRestore(args) {
+    const { inputPath, branch, merge, dryRun } = args;
+    const projectRoot = process.cwd();
+
+    try {
+      // Read backup file
+      if (!fs.existsSync(inputPath)) {
+        throw new Error(`Backup file not found: ${inputPath}`);
+      }
+
+      const backupData = JSON.parse(fs.readFileSync(inputPath, 'utf8'));
+
+      // Validate backup format
+      if (!backupData.version || !backupData.entries) {
+        throw new Error('Invalid backup file format');
+      }
+
+      // Preview mode
+      if (dryRun) {
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify({
+              action: 'kb_restore',
+              dryRun: true,
+              success: true,
+              backupInfo: {
+                version: backupData.version,
+                createdAt: backupData.createdAt,
+                originalBranch: backupData.branch,
+                entriesCount: backupData.totalEntries,
+                maestroVersion: backupData.maestroVersion
+              },
+              targetBranch: branch || backupData.branch,
+              mergeMode: merge || false,
+              message: `Would restore ${backupData.totalEntries} entries`
+            }, null, 2)
+          }]
+        };
+      }
+
+      // Initialize knowledge store
+      const KnowledgeStore = require('../skills/knowledge-store');
+      const store = new KnowledgeStore({
+        maestroDir: path.join(projectRoot, 'maestro')
+      });
+
+      const targetBranch = branch || backupData.branch === 'global' ? null : backupData.branch;
+
+      // Ensure directories exist
+      store.ensureDirectories(targetBranch);
+
+      // Restore entries
+      let restored = 0;
+      let skipped = 0;
+      let errors = [];
+
+      for (const entry of backupData.entries) {
+        try {
+          if (merge) {
+            // Check if entry exists
+            const existing = store.get(entry.id, targetBranch);
+            if (existing) {
+              // Skip if existing is newer
+              const existingTime = new Date(existing.metadata?.updatedAt || 0).getTime();
+              const backupTime = new Date(entry.metadata?.updatedAt || 0).getTime();
+              if (existingTime > backupTime) {
+                skipped++;
+                continue;
+              }
+            }
+          }
+
+          const result = store.save(entry, targetBranch);
+          if (result.success) {
+            restored++;
+          } else {
+            errors.push({ id: entry.id, error: result.error });
+          }
+        } catch (e) {
+          errors.push({ id: entry.id, error: e.message });
+        }
+      }
+
+      // Rebuild index
+      store.buildIndex(targetBranch);
+
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            action: 'kb_restore',
+            success: errors.length === 0,
+            restored: restored,
+            skipped: skipped,
+            errors: errors.length,
+            errorDetails: errors.slice(0, 5), // First 5 errors
+            targetBranch: targetBranch || 'global',
+            message: `Restored ${restored} entries${skipped > 0 ? `, skipped ${skipped}` : ''}${errors.length > 0 ? `, ${errors.length} errors` : ''}`
+          }, null, 2)
+        }]
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            action: 'kb_restore',
+            success: false,
+            error: error.message
+          }, null, 2)
+        }]
+      };
+    }
+  }
+
+  /**
+   * Tool: Generate Mermaid diagram
+   */
+  toolGenerateDiagram(args) {
+    const { type = 'flowchart', trackId, includeCompleted } = args;
+    const projectRoot = process.cwd();
+
+    try {
+      // Load tracks
+      const tracksDir = path.join(projectRoot, 'maestro', 'tracks');
+      const tracks = [];
+
+      if (fs.existsSync(tracksDir)) {
+        const trackDirs = fs.readdirSync(tracksDir);
+        for (const dir of trackDirs) {
+          const specPath = path.join(tracksDir, dir, 'spec.md');
+          const metaPath = path.join(tracksDir, dir, 'metadata.json');
+
+          if (fs.existsSync(metaPath)) {
+            try {
+              const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+              if (trackId && meta.id !== trackId) continue;
+              if (!includeCompleted && meta.status === 'completed') continue;
+              tracks.push(meta);
+            } catch (e) {
+              // Skip invalid tracks
+            }
+          }
+        }
+      }
+
+      if (tracks.length === 0) {
+        return {
+          content: [{
+            type: 'text',
+            text: JSON.stringify({
+              action: 'generate_diagram',
+              success: true,
+              diagram: '',
+              message: 'No tracks found to diagram'
+            }, null, 2)
+          }]
+        };
+      }
+
+      let diagram = '';
+
+      switch (type) {
+        case 'flowchart':
+          diagram = this.generateFlowchartDiagram(tracks);
+          break;
+        case 'gantt':
+          diagram = this.generateGanttDiagram(tracks);
+          break;
+        case 'mindmap':
+          diagram = this.generateMindmapDiagram(tracks);
+          break;
+        default:
+          diagram = this.generateFlowchartDiagram(tracks);
+      }
+
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            action: 'generate_diagram',
+            success: true,
+            type: type,
+            tracksIncluded: tracks.length,
+            diagram: diagram,
+            message: `Generated ${type} diagram with ${tracks.length} tracks`
+          }, null, 2)
+        }]
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            action: 'generate_diagram',
+            success: false,
+            error: error.message
+          }, null, 2)
+        }]
+      };
+    }
+  }
+
+  /**
+   * Generate flowchart diagram
+   */
+  generateFlowchartDiagram(tracks) {
+    const lines = ['flowchart TD'];
+
+    // Define nodes
+    for (const track of tracks) {
+      const id = this.sanitizeId(track.id);
+      const label = track.title || track.id;
+      const status = track.status || 'pending';
+
+      // Style based on status
+      let style = '';
+      switch (status) {
+        case 'completed':
+          style = ':::completed';
+          break;
+        case 'in-progress':
+          style = ':::inprogress';
+          break;
+        case 'blocked':
+          style = ':::blocked';
+          break;
+        default:
+          style = ':::pending';
+      }
+
+      lines.push(`    ${id}["${label}"]${style}`);
+    }
+
+    // Define dependencies
+    for (const track of tracks) {
+      const id = this.sanitizeId(track.id);
+      if (track.dependencies && track.dependencies.length > 0) {
+        for (const dep of track.dependencies) {
+          const depId = this.sanitizeId(dep);
+          lines.push(`    ${depId} --> ${id}`);
+        }
+      }
+    }
+
+    // Add styles
+    lines.push('');
+    lines.push('    classDef completed fill:#90EE90,stroke:#228B22');
+    lines.push('    classDef inprogress fill:#87CEEB,stroke:#4169E1');
+    lines.push('    classDef blocked fill:#FFB6C1,stroke:#DC143C');
+    lines.push('    classDef pending fill:#F5F5F5,stroke:#808080');
+
+    return lines.join('\n');
+  }
+
+  /**
+   * Generate Gantt diagram
+   */
+  generateGanttDiagram(tracks) {
+    const lines = [
+      'gantt',
+      '    title Track Progress',
+      '    dateFormat YYYY-MM-DD'
+    ];
+
+    // Group by type or status
+    const sections = {};
+    for (const track of tracks) {
+      const section = track.type || 'Tasks';
+      if (!sections[section]) {
+        sections[section] = [];
+      }
+      sections[section].push(track);
+    }
+
+    for (const [section, sectionTracks] of Object.entries(sections)) {
+      lines.push(`    section ${section}`);
+
+      for (const track of sectionTracks) {
+        const label = track.title || track.id;
+        const id = this.sanitizeId(track.id);
+        const status = track.status || 'pending';
+
+        let statusMarker = '';
+        if (status === 'completed') statusMarker = 'done, ';
+        else if (status === 'in-progress') statusMarker = 'active, ';
+        else if (status === 'blocked') statusMarker = 'crit, ';
+
+        // Estimate duration (default to 1 day)
+        const duration = track.estimatedDays || '1d';
+
+        lines.push(`    ${label} :${statusMarker}${id}, after start, ${duration}`);
+      }
+    }
+
+    return lines.join('\n');
+  }
+
+  /**
+   * Generate mindmap diagram
+   */
+  generateMindmapDiagram(tracks) {
+    const lines = ['mindmap', '    root((Tracks))'];
+
+    // Group by type
+    const byType = {};
+    for (const track of tracks) {
+      const type = track.type || 'other';
+      if (!byType[type]) {
+        byType[type] = [];
+      }
+      byType[type].push(track);
+    }
+
+    for (const [type, typeTracks] of Object.entries(byType)) {
+      lines.push(`        ${type}`);
+      for (const track of typeTracks) {
+        const label = track.title || track.id;
+        const status = track.status || 'pending';
+        const icon = status === 'completed' ? '✓' : status === 'in-progress' ? '→' : '○';
+        lines.push(`            ${icon} ${label}`);
+      }
+    }
+
+    return lines.join('\n');
+  }
+
+  /**
+   * Sanitize ID for Mermaid
+   */
+  sanitizeId(id) {
+    return id.replace(/[^a-zA-Z0-9]/g, '_');
   }
 
   /**

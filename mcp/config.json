@@ -363,6 +363,75 @@
           }
         }
       }
+    },
+    {
+      "name": "kb_backup",
+      "description": "Backup the knowledge store to a portable JSON file",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "outputPath": {
+            "type": "string",
+            "description": "Path for the backup file (defaults to maestro/backups/)"
+          },
+          "branch": {
+            "type": "string",
+            "description": "Branch to backup (defaults to current/global)"
+          },
+          "includeIndex": {
+            "type": "boolean",
+            "description": "Include the search index in backup"
+          }
+        }
+      }
+    },
+    {
+      "name": "kb_restore",
+      "description": "Restore the knowledge store from a backup file",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "inputPath": {
+            "type": "string",
+            "description": "Path to the backup file"
+          },
+          "branch": {
+            "type": "string",
+            "description": "Branch to restore to (defaults to original branch)"
+          },
+          "merge": {
+            "type": "boolean",
+            "description": "Merge with existing knowledge instead of replacing"
+          },
+          "dryRun": {
+            "type": "boolean",
+            "description": "Preview restore without applying changes"
+          }
+        },
+        "required": ["inputPath"]
+      }
+    },
+    {
+      "name": "generate_diagram",
+      "description": "Generate a Mermaid diagram from tracks and their dependencies",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["flowchart", "gantt", "mindmap"],
+            "description": "Type of diagram to generate"
+          },
+          "trackId": {
+            "type": "string",
+            "description": "Specific track to diagram (optional, diagrams all if omitted)"
+          },
+          "includeCompleted": {
+            "type": "boolean",
+            "description": "Include completed tasks in diagram"
+          }
+        }
+      }
     }
   ],
   "resources": [
