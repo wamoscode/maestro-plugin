@@ -39,7 +39,7 @@ class KnowledgeStore {
 
   /**
    * Generate a unique knowledge entry ID
-   * @param {string} type - Entry type (decision, pattern, research, learning)
+   * @param {string} type - Entry type (decision, pattern, research, learning, blocker, entity, todo)
    * @returns {string} Unique identifier
    */
   generateId(type) {
@@ -48,7 +48,9 @@ class KnowledgeStore {
       pattern: 'pat',
       research: 'res',
       learning: 'lrn',
-      blocker: 'blk'
+      blocker: 'blk',
+      entity: 'ent',
+      todo: 'todo'
     }[type] || 'know';
 
     const timestamp = Date.now().toString(36);
@@ -82,7 +84,9 @@ class KnowledgeStore {
       research: 'research',
       learning: 'learnings',
       blocker: 'blockers',
-      session: 'sessions'
+      session: 'sessions',
+      entity: 'entities',
+      todo: 'todos'
     }[type] || 'misc';
 
     return path.join(this.getKnowledgePath(branch), typeDir);
@@ -116,7 +120,7 @@ class KnowledgeStore {
    */
   ensureDirectories(branch = null) {
     const basePath = this.getKnowledgePath(branch);
-    const types = ['decisions', 'patterns', 'research', 'learnings', 'blockers', 'sessions'];
+    const types = ['decisions', 'patterns', 'research', 'learnings', 'blockers', 'sessions', 'entities', 'todos'];
 
     try {
       // Create base directory
@@ -588,9 +592,9 @@ class KnowledgeStore {
   buildIndex(branch = null) {
     try {
       const basePath = this.getKnowledgePath(branch);
-      const types = ['decisions', 'patterns', 'research', 'learnings', 'blockers'];
+      const types = ['decisions', 'patterns', 'research', 'learnings', 'blockers', 'entities', 'todos'];
       const index = {
-        version: '1.0.0',
+        version: '1.1.0',
         builtAt: new Date().toISOString(),
         branch: branch || 'global',
         entries: {},
@@ -812,7 +816,9 @@ class KnowledgeStore {
       pat: 'pattern',
       res: 'research',
       lrn: 'learning',
-      blk: 'blocker'
+      blk: 'blocker',
+      ent: 'entity',
+      todo: 'todo'
     }[prefix] || 'misc';
   }
 
@@ -918,6 +924,348 @@ class KnowledgeStore {
     }
 
     return this.bulkSave(data.entries, branch);
+  }
+
+  /**
+   * Generate a human-readable KNOWLEDGE_SUMMARY.md file
+   * @param {string} branch - Optional branch name
+   * @returns {Object} Generation result
+   */
+  generateSummary(branch = null) {
+    try {
+      const basePath = this.getKnowledgePath(branch);
+      const summaryPath = path.join(basePath, 'KNOWLEDGE_SUMMARY.md');
+      const stats = this.getStats(branch);
+      const timestamp = new Date().toISOString();
+
+      // Query for different types of entries
+      const topDecisions = this.query({
+        type: 'decision',
+        sortBy: 'confidence',
+        sortOrder: 'desc',
+        limit: 10,
+        fullEntries: true
+      }, branch);
+
+      const activePatterns = this.query({
+        type: 'pattern',
+        sortBy: 'metadata.updatedAt',
+        sortOrder: 'desc',
+        limit: 10,
+        fullEntries: true
+      }, branch);
+
+      const recentBlockers = this.query({
+        type: 'blocker',
+        sortBy: 'metadata.createdAt',
+        sortOrder: 'desc',
+        limit: 5,
+        fullEntries: true
+      }, branch);
+
+      const pendingTodos = this.query({
+        type: 'todo',
+        sortBy: 'metadata.createdAt',
+        sortOrder: 'desc',
+        limit: 10,
+        fullEntries: true
+      }, branch);
+
+      const entities = this.query({
+        type: 'entity',
+        sortBy: 'title',
+        sortOrder: 'asc',
+        limit: 20,
+        fullEntries: true
+      }, branch);
+
+      // Query for decisions needing review
+      const allDecisions = this.query({
+        type: 'decision',
+        fullEntries: true
+      }, branch);
+
+      const decisionsNeedingReview = (allDecisions.entries || []).filter(d => {
+        if (!d.reviewDate) return false;
+        return new Date(d.reviewDate) <= new Date();
+      });
+
+      // Build markdown content
+      let content = this.buildSummaryMarkdown({
+        stats,
+        timestamp,
+        branch: branch || 'global',
+        topDecisions: topDecisions.entries || [],
+        activePatterns: activePatterns.entries || [],
+        recentBlockers: recentBlockers.entries || [],
+        pendingTodos: pendingTodos.entries || [],
+        entities: entities.entries || [],
+        decisionsNeedingReview
+      });
+
+      // Write summary file
+      fs.writeFileSync(summaryPath, content, 'utf8');
+
+      return {
+        success: true,
+        path: summaryPath,
+        stats: stats,
+        sections: {
+          decisions: (topDecisions.entries || []).length,
+          patterns: (activePatterns.entries || []).length,
+          blockers: (recentBlockers.entries || []).length,
+          todos: (pendingTodos.entries || []).length,
+          entities: (entities.entries || []).length,
+          needsReview: decisionsNeedingReview.length
+        },
+        message: `Knowledge summary generated at ${summaryPath}`
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Failed to generate summary: ${error.message}`
+      };
+    }
+  }
+
+  /**
+   * Build the markdown content for the summary
+   * @param {Object} data - Summary data
+   * @returns {string} Markdown content
+   */
+  buildSummaryMarkdown(data) {
+    const lines = [];
+
+    // Header
+    lines.push('# Knowledge System Summary');
+    lines.push('');
+    lines.push(`> Auto-generated: ${data.timestamp}`);
+    lines.push(`> Branch: ${data.branch}`);
+    lines.push('');
+
+    // Statistics Overview
+    lines.push('## Statistics');
+    lines.push('');
+    lines.push('| Metric | Count |');
+    lines.push('|--------|-------|');
+    lines.push(`| Total Entries | ${data.stats.total} |`);
+
+    if (data.stats.byType) {
+      // Map type keys to proper display names
+      const typeDisplayNames = {
+        decisions: 'Decisions',
+        patterns: 'Patterns',
+        research: 'Research',
+        learnings: 'Learnings',
+        blockers: 'Blockers',
+        entities: 'Entities',
+        todos: 'TODOs',
+        sessions: 'Sessions'
+      };
+
+      for (const [type, count] of Object.entries(data.stats.byType)) {
+        const typeName = typeDisplayNames[type] || (type.charAt(0).toUpperCase() + type.slice(1));
+        lines.push(`| ${typeName} | ${count} |`);
+      }
+    }
+    lines.push('');
+
+    // Decisions Needing Review
+    if (data.decisionsNeedingReview.length > 0) {
+      lines.push('## ⚠️ Decisions Needing Review');
+      lines.push('');
+      lines.push('These decisions have passed their review date:');
+      lines.push('');
+      for (const decision of data.decisionsNeedingReview) {
+        lines.push(`- **${decision.title}** (Review date: ${decision.reviewDate})`);
+        if (decision.reviewReason) {
+          lines.push(`  - Reason: ${decision.reviewReason}`);
+        }
+      }
+      lines.push('');
+    }
+
+    // Key Decisions
+    lines.push('## Key Decisions');
+    lines.push('');
+    if (data.topDecisions.length === 0) {
+      lines.push('*No decisions captured yet*');
+    } else {
+      for (const decision of data.topDecisions) {
+        const confidence = decision.confidence ? ` (${Math.round(decision.confidence * 100)}% confidence)` : '';
+        const status = decision.status ? ` [${decision.status}]` : '';
+        lines.push(`### ${decision.title}${status}${confidence}`);
+        lines.push('');
+        if (decision.content?.choice) {
+          lines.push(`**Decision**: ${decision.content.choice}`);
+          lines.push('');
+        }
+        if (decision.content?.rationale) {
+          lines.push(`**Rationale**: ${decision.content.rationale}`);
+          lines.push('');
+        }
+        if (decision.supersededBy) {
+          lines.push(`> ⚠️ Superseded by: ${decision.supersededBy}`);
+          lines.push('');
+        }
+        if (decision.domain) {
+          lines.push(`*Domain: ${decision.domain}*`);
+        }
+        if (decision.tags && decision.tags.length > 0) {
+          lines.push(`*Tags: ${decision.tags.join(', ')}*`);
+        }
+        lines.push('');
+        lines.push('---');
+        lines.push('');
+      }
+    }
+
+    // Active Patterns
+    lines.push('## Active Patterns');
+    lines.push('');
+    if (data.activePatterns.length === 0) {
+      lines.push('*No patterns captured yet*');
+    } else {
+      for (const pattern of data.activePatterns) {
+        lines.push(`### ${pattern.title || pattern.name}`);
+        lines.push('');
+        if (pattern.content?.problem) {
+          lines.push(`**Problem**: ${pattern.content.problem}`);
+          lines.push('');
+        }
+        if (pattern.content?.solution) {
+          lines.push(`**Solution**: ${pattern.content.solution}`);
+          lines.push('');
+        }
+        if (pattern.feedback?.usageCount) {
+          lines.push(`*Used ${pattern.feedback.usageCount} times*`);
+        }
+        lines.push('');
+      }
+    }
+
+    // Entities (if any)
+    if (data.entities.length > 0) {
+      lines.push('## Tracked Entities');
+      lines.push('');
+
+      // Group by entity type
+      const byType = {};
+      for (const entity of data.entities) {
+        const type = entity.entityType || 'other';
+        if (!byType[type]) byType[type] = [];
+        byType[type].push(entity);
+      }
+
+      for (const [type, entities] of Object.entries(byType)) {
+        lines.push(`### ${type.charAt(0).toUpperCase() + type.slice(1)}s`);
+        lines.push('');
+        for (const entity of entities) {
+          lines.push(`- **${entity.title || entity.name}**`);
+          if (entity.content?.description) {
+            lines.push(`  - ${entity.content.description}`);
+          }
+          if (entity.content?.location) {
+            lines.push(`  - Location: \`${entity.content.location}\``);
+          }
+        }
+        lines.push('');
+      }
+    }
+
+    // Pending TODOs (if any)
+    if (data.pendingTodos.length > 0) {
+      lines.push('## Pending TODOs');
+      lines.push('');
+
+      // Group by priority
+      const byPriority = { high: [], medium: [], low: [] };
+      for (const todo of data.pendingTodos) {
+        const priority = todo.priority || 'medium';
+        if (byPriority[priority]) {
+          byPriority[priority].push(todo);
+        } else {
+          byPriority.medium.push(todo);
+        }
+      }
+
+      for (const priority of ['high', 'medium', 'low']) {
+        const todos = byPriority[priority];
+        if (todos.length > 0) {
+          const icon = priority === 'high' ? '🔴' : priority === 'medium' ? '🟡' : '🟢';
+          lines.push(`### ${icon} ${priority.charAt(0).toUpperCase() + priority.slice(1)} Priority`);
+          lines.push('');
+          for (const todo of todos) {
+            const status = todo.status === 'done' ? '✅' : todo.status === 'in-progress' ? '🔄' : '⬜';
+            lines.push(`- ${status} **${todo.title}**`);
+            if (todo.content?.description) {
+              lines.push(`  - ${todo.content.description}`);
+            }
+            if (todo.dueDate) {
+              lines.push(`  - Due: ${todo.dueDate}`);
+            }
+          }
+          lines.push('');
+        }
+      }
+    }
+
+    // Recent Blockers/Solutions
+    lines.push('## Recent Blockers & Solutions');
+    lines.push('');
+    if (data.recentBlockers.length === 0) {
+      lines.push('*No blockers recorded yet*');
+    } else {
+      for (const blocker of data.recentBlockers) {
+        const resolved = blocker.content?.resolution ? '✅' : '⏳';
+        lines.push(`### ${resolved} ${blocker.title}`);
+        lines.push('');
+        if (blocker.content?.issue) {
+          lines.push(`**Issue**: ${blocker.content.issue}`);
+          lines.push('');
+        }
+        if (blocker.content?.resolution) {
+          lines.push(`**Resolution**: ${blocker.content.resolution}`);
+          lines.push('');
+        }
+        if (blocker.content?.preventionStrategy) {
+          lines.push(`**Prevention**: ${blocker.content.preventionStrategy}`);
+          lines.push('');
+        }
+      }
+    }
+
+    // Footer
+    lines.push('---');
+    lines.push('');
+    lines.push('*This summary is auto-generated from the Knowledge System.*');
+    lines.push('*Use `/kb-status` to view detailed statistics or `/kb-search` to search.*');
+
+    return lines.join('\n');
+  }
+
+  /**
+   * Override save to auto-generate summary
+   * @param {Object} knowledge - Knowledge entry to save
+   * @param {string} branch - Optional branch name
+   * @param {Object} options - Save options
+   * @returns {Object} Save result
+   */
+  saveWithSummary(knowledge, branch = null, options = {}) {
+    const result = this.save(knowledge, branch);
+
+    // Auto-regenerate summary if enabled
+    if (result.success && options.autoGenerateSummary !== false) {
+      // Don't wait for summary generation, do it async-style
+      try {
+        this.generateSummary(branch);
+      } catch (e) {
+        // Summary generation failure shouldn't fail the save
+      }
+    }
+
+    return result;
   }
 }
 

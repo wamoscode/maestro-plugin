@@ -284,6 +284,465 @@ class SessionLearningController {
   }
 
   /**
+   * Capture an entity (component, service, module, etc.)
+   * @param {Object} entity - Entity data
+   * @returns {Object} Capture result
+   */
+  captureEntity(entity) {
+    if (!this.initialized) {
+      return {
+        success: false,
+        error: 'not_initialized',
+        message: 'Learning session not initialized'
+      };
+    }
+
+    // Add context
+    const enrichedEntity = {
+      ...entity,
+      trackId: entity.trackId || this.activeTrackId,
+      sessionId: this.sessionId,
+      branch: this.branch
+    };
+
+    // Create entity entry
+    const entry = {
+      id: `ent_${Date.now().toString(36)}_${Math.random().toString(36).substr(2, 6)}`,
+      type: 'entity',
+      timestamp: new Date().toISOString(),
+      title: entity.name || entity.title,
+      name: entity.name || entity.title,
+      entityType: entity.entityType || 'component',
+      content: {
+        description: entity.description,
+        location: entity.location,
+        responsibilities: entity.responsibilities || [],
+        dependencies: entity.dependencies || []
+      },
+      context: {
+        trackId: enrichedEntity.trackId,
+        sessionId: enrichedEntity.sessionId,
+        branch: enrichedEntity.branch
+      },
+      domain: entity.domain,
+      tags: entity.tags || [],
+      relatedDecisions: entity.relatedDecisions || [],
+      relatedPatterns: entity.relatedPatterns || [],
+      confidence: entity.confidence || 0.8
+    };
+
+    // Save directly to knowledge store
+    const saveResult = this.knowledgeStore.save(entry, this.branch);
+
+    return {
+      success: saveResult.success,
+      entryId: entry.id,
+      type: 'entity',
+      entityType: entry.entityType,
+      message: `Entity captured: ${entry.name} (${entry.entityType})`
+    };
+  }
+
+  /**
+   * Capture a TODO item
+   * @param {Object} todo - TODO data
+   * @returns {Object} Capture result
+   */
+  captureTodo(todo) {
+    if (!this.initialized) {
+      return {
+        success: false,
+        error: 'not_initialized',
+        message: 'Learning session not initialized'
+      };
+    }
+
+    // Add context
+    const enrichedTodo = {
+      ...todo,
+      trackId: todo.trackId || this.activeTrackId,
+      sessionId: this.sessionId,
+      branch: this.branch
+    };
+
+    // Create TODO entry
+    const entry = {
+      id: `todo_${Date.now().toString(36)}_${Math.random().toString(36).substr(2, 6)}`,
+      type: 'todo',
+      timestamp: new Date().toISOString(),
+      title: todo.title,
+      priority: todo.priority || 'medium',
+      status: todo.status || 'pending',
+      content: {
+        description: todo.description,
+        acceptanceCriteria: todo.acceptanceCriteria || [],
+        notes: todo.notes
+      },
+      context: {
+        trackId: enrichedTodo.trackId,
+        sessionId: enrichedTodo.sessionId,
+        branch: enrichedTodo.branch
+      },
+      dueDate: todo.dueDate,
+      domain: todo.domain,
+      tags: todo.tags || [],
+      confidence: 1.0
+    };
+
+    // Save directly to knowledge store
+    const saveResult = this.knowledgeStore.save(entry, this.branch);
+
+    return {
+      success: saveResult.success,
+      entryId: entry.id,
+      type: 'todo',
+      priority: entry.priority,
+      message: `TODO captured: ${entry.title} [${entry.priority}]`
+    };
+  }
+
+  /**
+   * Update a TODO status
+   * @param {string} todoId - TODO entry ID
+   * @param {string} newStatus - New status (pending, in-progress, done, wont-do)
+   * @param {Object} updates - Additional updates
+   * @returns {Object} Update result
+   */
+  updateTodo(todoId, newStatus, updates = {}) {
+    if (!this.initialized) {
+      return {
+        success: false,
+        error: 'not_initialized',
+        message: 'Learning session not initialized'
+      };
+    }
+
+    const timestamp = new Date().toISOString();
+
+    const updateData = {
+      status: newStatus,
+      ...updates,
+      metadata: {
+        updatedAt: timestamp,
+        completedAt: newStatus === 'done' ? timestamp : undefined
+      }
+    };
+
+    const result = this.knowledgeStore.update(todoId, updateData, this.branch);
+
+    return {
+      success: result.success,
+      todoId: todoId,
+      newStatus: newStatus,
+      message: result.success
+        ? `TODO updated: ${todoId} → ${newStatus}`
+        : `Failed to update TODO: ${result.error}`
+    };
+  }
+
+  /**
+   * Get pending TODOs
+   * @param {Object} options - Query options
+   * @returns {Object} Query result with pending TODOs
+   */
+  getPendingTodos(options = {}) {
+    const result = this.knowledgeStore.query({
+      type: 'todo',
+      fullEntries: true,
+      ...options
+    }, this.branch);
+
+    if (!result.success) {
+      return result;
+    }
+
+    // Filter for pending/in-progress only
+    const pending = (result.entries || []).filter(t =>
+      t.status === 'pending' || t.status === 'in-progress'
+    );
+
+    // Sort by priority then date
+    const priorityOrder = { high: 0, medium: 1, low: 2 };
+    pending.sort((a, b) => {
+      const pDiff = (priorityOrder[a.priority] || 1) - (priorityOrder[b.priority] || 1);
+      if (pDiff !== 0) return pDiff;
+      return new Date(a.timestamp) - new Date(b.timestamp);
+    });
+
+    return {
+      success: true,
+      todos: pending,
+      total: pending.length,
+      byPriority: {
+        high: pending.filter(t => t.priority === 'high').length,
+        medium: pending.filter(t => t.priority === 'medium').length,
+        low: pending.filter(t => t.priority === 'low').length
+      },
+      message: `Found ${pending.length} pending TODOs`
+    };
+  }
+
+  /**
+   * Get tracked entities
+   * @param {Object} options - Query options
+   * @returns {Object} Query result with entities
+   */
+  getEntities(options = {}) {
+    const result = this.knowledgeStore.query({
+      type: 'entity',
+      fullEntries: true,
+      ...options
+    }, this.branch);
+
+    if (!result.success) {
+      return result;
+    }
+
+    // Group by entity type
+    const byType = {};
+    for (const entity of result.entries || []) {
+      const type = entity.entityType || 'other';
+      if (!byType[type]) byType[type] = [];
+      byType[type].push(entity);
+    }
+
+    return {
+      success: true,
+      entities: result.entries || [],
+      total: result.total,
+      byType: byType,
+      message: `Found ${result.total} entities`
+    };
+  }
+
+  /**
+   * Get decisions that need review
+   * @returns {Object} Decisions needing review
+   */
+  getDecisionsNeedingReview() {
+    const result = this.knowledgeStore.query({
+      type: 'decision',
+      fullEntries: true
+    }, this.branch);
+
+    if (!result.success) {
+      return {
+        success: false,
+        decisions: [],
+        message: `Failed to query decisions: ${result.message}`
+      };
+    }
+
+    const now = new Date();
+    const needsReview = (result.entries || []).filter(d => {
+      if (!d.reviewDate) return false;
+      if (d.status === 'superseded' || d.status === 'deprecated') return false;
+      return new Date(d.reviewDate) <= now;
+    });
+
+    // Sort by review date (oldest first)
+    needsReview.sort((a, b) => new Date(a.reviewDate) - new Date(b.reviewDate));
+
+    return {
+      success: true,
+      decisions: needsReview,
+      total: needsReview.length,
+      overdue: needsReview.map(d => ({
+        id: d.id,
+        title: d.title,
+        reviewDate: d.reviewDate,
+        reviewReason: d.reviewReason,
+        daysOverdue: Math.floor((now - new Date(d.reviewDate)) / (1000 * 60 * 60 * 24))
+      })),
+      message: `Found ${needsReview.length} decisions needing review`
+    };
+  }
+
+  /**
+   * Set a review date for a decision
+   * @param {string} decisionId - Decision ID
+   * @param {string} reviewDate - Review date (YYYY-MM-DD)
+   * @param {string} reviewReason - Reason for the review
+   * @returns {Object} Update result
+   */
+  setDecisionReviewDate(decisionId, reviewDate, reviewReason = null) {
+    if (!this.initialized) {
+      return {
+        success: false,
+        error: 'not_initialized',
+        message: 'Learning session not initialized'
+      };
+    }
+
+    const result = this.knowledgeStore.update(decisionId, {
+      reviewDate: reviewDate,
+      reviewReason: reviewReason,
+      metadata: {
+        updatedAt: new Date().toISOString()
+      }
+    }, this.branch);
+
+    return {
+      success: result.success,
+      decisionId: decisionId,
+      reviewDate: reviewDate,
+      message: result.success
+        ? `Review date set for ${decisionId}: ${reviewDate}`
+        : `Failed to set review date: ${result.error}`
+    };
+  }
+
+  /**
+   * Mark a decision as superseded by a newer one
+   * @param {string} oldDecisionId - Decision being superseded
+   * @param {string} newDecisionId - Newer decision
+   * @returns {Object} Update result
+   */
+  supersedeDecision(oldDecisionId, newDecisionId) {
+    if (!this.initialized) {
+      return {
+        success: false,
+        error: 'not_initialized',
+        message: 'Learning session not initialized'
+      };
+    }
+
+    const timestamp = new Date().toISOString();
+
+    // Update the old decision
+    const oldResult = this.knowledgeStore.update(oldDecisionId, {
+      status: 'superseded',
+      supersededBy: newDecisionId,
+      metadata: {
+        updatedAt: timestamp
+      }
+    }, this.branch);
+
+    if (!oldResult.success) {
+      return {
+        success: false,
+        error: oldResult.error,
+        message: `Failed to supersede decision: ${oldResult.message}`
+      };
+    }
+
+    // Update the new decision to track what it supersedes
+    const newDecision = this.knowledgeStore.get(newDecisionId, this.branch);
+    if (newDecision) {
+      const supersedes = newDecision.supersedes || [];
+      if (!supersedes.includes(oldDecisionId)) {
+        supersedes.push(oldDecisionId);
+        this.knowledgeStore.update(newDecisionId, {
+          supersedes: supersedes
+        }, this.branch);
+      }
+    }
+
+    return {
+      success: true,
+      oldDecisionId: oldDecisionId,
+      newDecisionId: newDecisionId,
+      message: `Decision ${oldDecisionId} superseded by ${newDecisionId}`
+    };
+  }
+
+  /**
+   * Get the history/evolution chain of a decision
+   * @param {string} decisionId - Decision ID
+   * @returns {Object} Decision chain
+   */
+  getDecisionChain(decisionId) {
+    if (!this.initialized) {
+      return {
+        success: false,
+        error: 'not_initialized',
+        chain: { ancestors: [], current: null, successors: [] }
+      };
+    }
+
+    const chain = {
+      ancestors: [],
+      current: null,
+      successors: []
+    };
+
+    const current = this.knowledgeStore.get(decisionId, this.branch);
+    if (!current) {
+      return {
+        success: false,
+        error: 'not_found',
+        chain: chain,
+        message: `Decision not found: ${decisionId}`
+      };
+    }
+
+    chain.current = {
+      id: current.id,
+      title: current.title,
+      status: current.status,
+      createdAt: current.metadata?.createdAt
+    };
+
+    // Get ancestors (decisions this one supersedes)
+    const getAncestors = (ids) => {
+      for (const id of ids || []) {
+        const ancestor = this.knowledgeStore.get(id, this.branch);
+        if (ancestor) {
+          chain.ancestors.push({
+            id: ancestor.id,
+            title: ancestor.title,
+            status: ancestor.status,
+            createdAt: ancestor.metadata?.createdAt
+          });
+          getAncestors(ancestor.supersedes);
+        }
+      }
+    };
+    getAncestors(current.supersedes);
+
+    // Get successors (decisions that supersede this one)
+    const getSuccessors = (id) => {
+      const decision = this.knowledgeStore.get(id, this.branch);
+      if (decision && decision.supersededBy) {
+        const successor = this.knowledgeStore.get(decision.supersededBy, this.branch);
+        if (successor) {
+          chain.successors.push({
+            id: successor.id,
+            title: successor.title,
+            status: successor.status,
+            createdAt: successor.metadata?.createdAt
+          });
+          getSuccessors(successor.id);
+        }
+      }
+    };
+    getSuccessors(decisionId);
+
+    return {
+      success: true,
+      chain: chain,
+      evolutionCount: chain.ancestors.length + chain.successors.length,
+      message: `Decision has ${chain.ancestors.length} predecessors and ${chain.successors.length} successors`
+    };
+  }
+
+  /**
+   * Generate the knowledge summary file
+   * @returns {Object} Generation result
+   */
+  generateKnowledgeSummary() {
+    if (!this.initialized) {
+      return {
+        success: false,
+        error: 'not_initialized',
+        message: 'Learning session not initialized'
+      };
+    }
+
+    return this.knowledgeStore.generateSummary(this.branch);
+  }
+
+  /**
    * Get relevant knowledge for a task context
    * @param {Object} taskContext - Task context
    * @returns {Object} Relevant knowledge and recommendations
