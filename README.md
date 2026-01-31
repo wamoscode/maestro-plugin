@@ -1,24 +1,22 @@
 # Maestro Plugin for Claude Code
 
-A comprehensive orchestration plugin that bundles 40+ specialized sub-agents for intelligent task routing and multi-agent collaboration in Claude Code. Now with **Context-Driven Development** methodology, **Multi-Branch Parallel Sessions**, and **Platform Sync** for external project management integration.
+A comprehensive orchestration plugin that bundles 40+ specialized sub-agents for intelligent task routing and multi-agent collaboration in Claude Code. Features **Context-Driven Development** methodology, **Knowledge Hydration**, **Multi-Branch Parallel Sessions**, and **Platform Sync** for external project management integration.
 
 ## Overview
 
 Maestro acts as a master orchestrator—like a skilled conductor leading an orchestra—analyzing user tasks, determining the optimal sub-agent(s) to invoke, coordinating their execution (parallel or sequential), and synthesizing their results into cohesive deliverables.
 
-**New in v1.10**: Git Worktree Isolation - true physical branch isolation using Git worktrees. Each branch gets its own directory, enabling completely independent parallel work across multiple terminals.
+**New in v1.12**: Knowledge Hydration - bootstrap your Knowledge System from existing git history. Extracts decisions, patterns, entities, and learnings from commits and GitHub PRs to onboard new projects instantly.
+
+**v1.11**: Added observability tools (health_check, kb_backup, kb_restore), diagram generation, and Notion adapter.
+
+**v1.10**: Git Worktree Isolation - true physical branch isolation using Git worktrees. Each branch gets its own directory, enabling completely independent parallel work across multiple terminals.
 
 **v1.9**: Context-Aware Learning System - captures decisions, research, and discoveries during workflow execution, builds knowledge over time, and uses accumulated knowledge to inform future tasks.
 
 **v1.8**: Multi-Branch Parallel Sessions - multiple instances can work simultaneously on different git branches with proper isolation, session locking, and cross-session notifications.
 
 **v1.6**: Platform Sync for bidirectional synchronization with ClickUp, Linear, Jira, Asana, Todoist, YouTrack, and more via API or MCP.
-
-**v1.5**: Enhanced CDD with context versioning, quality gates, impact analysis, track archetypes, and knowledge capture.
-
-**v1.4**: CDD mode activation command (`/maestro:cdd`) with mandatory sub-agent orchestration for all tasks.
-
-**v1.3**: Multi-project workspace support with git submodule handling, cross-project tracks, and coordinated commits across repositories.
 
 ## Features
 
@@ -43,6 +41,7 @@ Maestro acts as a master orchestrator—like a skilled conductor leading an orch
 - **Context-Aware Learning**: Captures decisions and discoveries, uses past knowledge for future tasks
 - **Knowledge Store**: Persistent storage for decisions, patterns, research, and learnings
 - **Knowledge Injection**: Automatically enriches task context with relevant past knowledge
+- **Knowledge Hydration**: Bootstrap knowledge from git history for existing projects
 - **Workflow Templates**: TDD, Agile, and Minimal methodologies
 - **Code Style Guides**: TypeScript, Python, Go, and Rust templates
 - **Git Integration**: Commit tracking and git-aware revert functionality
@@ -99,6 +98,7 @@ For quick, untracked tasks:
 | `/maestro:impact` | Analyze change impact and blast radius |
 | `/maestro:stash` | Pause/resume tracks without reverting |
 | `/maestro:quick` | Fast shortcuts for common CDD actions |
+| `/maestro:hydrate` | Bootstrap knowledge from git history |
 
 ### Multi-Branch Session Commands (v1.8+)
 
@@ -761,6 +761,99 @@ Impact: Positive
 
 This feedback improves future knowledge relevance scoring.
 
+## Knowledge Hydration (v1.12)
+
+Bootstrap your Knowledge System from existing git history. Perfect for onboarding existing projects to CDD or recovering knowledge from repositories without prior CDD usage.
+
+### Quick Start
+
+```bash
+# Interactive mode (recommended for first-time use)
+/maestro:hydrate
+
+# Quick hydration - last 6 months, git only
+/maestro:hydrate --quick
+
+# Full hydration with GitHub PRs
+/maestro:hydrate --full --include-github
+
+# Preview what would be extracted
+/maestro:hydrate --preview
+```
+
+### What Gets Extracted
+
+| Source | Knowledge Type | Examples |
+|--------|---------------|----------|
+| Breaking changes (`feat!`) | Decisions (high confidence) | "Migrated to PostgreSQL" |
+| Feature commits (`feat`) | Entities, Patterns | New services, components |
+| Bug fixes (`fix`) | Learnings | Problem/solution pairs |
+| Refactors (`refactor`) | Patterns, Decisions | Code improvement approaches |
+| Reverts | Learnings | "What not to do" insights |
+| PR discussions | Decisions, Learnings | Review insights, rationale |
+
+### Multi-Repository Support
+
+Hydration automatically detects workspace structure:
+
+```
+Analyzing workspace...
+
+Workspace type: Multi-repository (3 repos detected)
+
+| Repository    | Type      | Commits | Date Range      |
+|---------------|-----------|---------|-----------------|
+| frontend/     | main      | 1,234   | 2022-03 to now  |
+| backend/      | submodule | 890     | 2022-06 to now  |
+| shared-libs/  | submodule | 456     | 2023-01 to now  |
+
+Total: 2,580 commits
+```
+
+### Hydration Options
+
+```bash
+# Scope options
+/maestro:hydrate --since 2024-01-01    # Start date
+/maestro:hydrate --max-commits 500      # Limit commits
+/maestro:hydrate --branches main,develop # Specific branches
+/maestro:hydrate --skip-merges          # Skip merge commits
+
+# Multi-repo options
+/maestro:hydrate --all-repos            # All repositories
+/maestro:hydrate --repos frontend,backend # Specific repos
+/maestro:hydrate --no-submodules        # Exclude submodules
+
+# Output options
+/maestro:hydrate --create-tracks        # Generate retrospective tracks
+/maestro:hydrate --min-confidence 0.7   # Confidence threshold
+/maestro:hydrate --incremental          # Only new commits since last run
+```
+
+### Incremental Hydration
+
+After initial hydration, use `--incremental` to process only new commits:
+
+```bash
+/maestro:hydrate --incremental
+```
+
+State is tracked in `maestro/hydration/state.json` with per-repository progress.
+
+### GitHub Integration
+
+When `GITHUB_TOKEN` is available, hydration extracts richer knowledge from PRs:
+
+- PR titles and descriptions
+- Review comments and approvals
+- Linked issues
+- Discussion insights
+
+```bash
+export GITHUB_TOKEN=your_token_here
+/maestro:hydrate --include-github
+```
+
 ### Context Enrichment Suggestions
 
 After significant learnings, the system suggests context file updates:
@@ -1218,6 +1311,21 @@ If you need to configure it manually (for development or custom setups), add to 
 - `sync_test` - Test platform connections
 - `sync_config` - Get or update sync configuration
 
+**Knowledge Tools:**
+- `hydrate_knowledge` - Bootstrap knowledge from git history
+- `hydrate_status` - Get hydration status and progress
+- `health_check` - Check system health status
+- `kb_backup` - Backup knowledge store
+- `kb_restore` - Restore knowledge from backup
+- `generate_diagram` - Generate Mermaid diagrams from tracks
+
+**Learning Tools:**
+- `learning_init` - Initialize a learning session
+- `learning_capture` - Capture decisions, research, discoveries
+- `learning_finalize` - Finalize session and persist learnings
+- `learning_status` - Get current learning session status
+- `learning_get_knowledge` - Get relevant knowledge for context
+
 ## Directory Structure
 
 ```
@@ -1284,6 +1392,10 @@ maestro-plugin/
 │   ├── learning-journal.js # Real-time capture (v1.9)
 │   ├── knowledge-recall.js # Knowledge retrieval (v1.9)
 │   ├── context-enrichment.js  # Auto-enrichment (v1.9)
+│   ├── workspace-scanner.js   # Multi-repo detection (v1.12)
+│   ├── git-history-parser.js  # Commit parsing (v1.12)
+│   ├── knowledge-extractor.js # Knowledge extraction (v1.12)
+│   ├── hydration-manager.js   # Hydration orchestration (v1.12)
 │   ├── knowledge-capture.js   # ADRs and retrospectives
 │   ├── context-versioning.js
 │   ├── quality-gates.js

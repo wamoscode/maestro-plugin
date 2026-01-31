@@ -1,6 +1,6 @@
 {
   "name": "maestro-mcp",
-  "version": "1.10.4",
+  "version": "1.12.0",
   "description": "MCP server for Maestro plugin - provides advanced orchestration and multi-branch session capabilities",
   "server": {
     "type": "stdio",
@@ -349,6 +349,160 @@
           }
         },
         "required": ["phase"]
+      }
+    },
+    {
+      "name": "health_check",
+      "description": "Check the health status of the Maestro system including knowledge store, sync engine, and learning session",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "verbose": {
+            "type": "boolean",
+            "description": "Include detailed component information"
+          }
+        }
+      }
+    },
+    {
+      "name": "kb_backup",
+      "description": "Backup the knowledge store to a portable JSON file",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "outputPath": {
+            "type": "string",
+            "description": "Path for the backup file (defaults to maestro/backups/)"
+          },
+          "branch": {
+            "type": "string",
+            "description": "Branch to backup (defaults to current/global)"
+          },
+          "includeIndex": {
+            "type": "boolean",
+            "description": "Include the search index in backup"
+          }
+        }
+      }
+    },
+    {
+      "name": "kb_restore",
+      "description": "Restore the knowledge store from a backup file",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "inputPath": {
+            "type": "string",
+            "description": "Path to the backup file"
+          },
+          "branch": {
+            "type": "string",
+            "description": "Branch to restore to (defaults to original branch)"
+          },
+          "merge": {
+            "type": "boolean",
+            "description": "Merge with existing knowledge instead of replacing"
+          },
+          "dryRun": {
+            "type": "boolean",
+            "description": "Preview restore without applying changes"
+          }
+        },
+        "required": ["inputPath"]
+      }
+    },
+    {
+      "name": "generate_diagram",
+      "description": "Generate a Mermaid diagram from tracks and their dependencies",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["flowchart", "gantt", "mindmap"],
+            "description": "Type of diagram to generate"
+          },
+          "trackId": {
+            "type": "string",
+            "description": "Specific track to diagram (optional, diagrams all if omitted)"
+          },
+          "includeCompleted": {
+            "type": "boolean",
+            "description": "Include completed tasks in diagram"
+          }
+        }
+      }
+    },
+    {
+      "name": "hydrate_knowledge",
+      "description": "Hydrate knowledge system from git history. Extracts decisions, patterns, entities, and learnings from commit history and optionally GitHub PRs.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": ["full", "incremental", "preview"],
+            "description": "Hydration mode: full (all history), incremental (since last hydration), preview (dry run)"
+          },
+          "since": {
+            "type": "string",
+            "description": "Start date or commit hash for filtering (ISO date or git ref)"
+          },
+          "until": {
+            "type": "string",
+            "description": "End date or commit hash for filtering (ISO date or git ref)"
+          },
+          "branches": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Branches to analyze (default: HEAD)"
+          },
+          "maxCommits": {
+            "type": "number",
+            "description": "Limit the number of commits to process"
+          },
+          "skipMergeCommits": {
+            "type": "boolean",
+            "description": "Skip merge commits during processing"
+          },
+          "includeGitHub": {
+            "type": "boolean",
+            "description": "Fetch and analyze GitHub PR data (requires GITHUB_TOKEN)"
+          },
+          "dryRun": {
+            "type": "boolean",
+            "description": "Preview what would be extracted without saving"
+          },
+          "repos": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Specific repositories to process (for multi-repo workspaces)"
+          },
+          "noSubmodules": {
+            "type": "boolean",
+            "description": "Exclude git submodules from processing"
+          },
+          "submodulesOnly": {
+            "type": "boolean",
+            "description": "Only process git submodules"
+          },
+          "createTracks": {
+            "type": "boolean",
+            "description": "Create retrospective tracks from merged branches"
+          },
+          "minConfidence": {
+            "type": "number",
+            "description": "Minimum confidence threshold for extracted knowledge (0-1)"
+          }
+        }
+      }
+    },
+    {
+      "name": "hydrate_status",
+      "description": "Get hydration status and progress. Shows whether the repository has been hydrated, last hydration time, and statistics.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
       }
     }
   ],

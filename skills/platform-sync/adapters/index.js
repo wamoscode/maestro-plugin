@@ -11,6 +11,8 @@ const AsanaAdapter = require('./asana-adapter');
 const JiraAdapter = require('./jira-adapter');
 const TodoistAdapter = require('./todoist-adapter');
 const YouTrackAdapter = require('./youtrack-adapter');
+const GitHubAdapter = require('./github-adapter');
+const NotionAdapter = require('./notion-adapter');
 
 // Adapter registry
 const adapters = {
@@ -19,7 +21,9 @@ const adapters = {
   asana: AsanaAdapter,
   jira: JiraAdapter,
   todoist: TodoistAdapter,
-  youtrack: YouTrackAdapter
+  youtrack: YouTrackAdapter,
+  github: GitHubAdapter,
+  notion: NotionAdapter
 };
 
 /**
@@ -62,6 +66,8 @@ module.exports = {
   JiraAdapter,
   TodoistAdapter,
   YouTrackAdapter,
+  GitHubAdapter,
+  NotionAdapter,
   getAdapter,
   getAvailablePlatforms,
   isPlatformSupported,
