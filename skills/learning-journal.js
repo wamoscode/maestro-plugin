@@ -480,11 +480,12 @@ class LearningJournal {
       };
     }
 
-    const addedCount = 0;
+    let addedCount = 0;
     for (const entry of otherJournal.entries) {
       // Check for duplicate by ID
       if (!this.entries.find(e => e.id === entry.id)) {
         this.entries.push(entry);
+        addedCount++;
 
         // Update indexes
         if (entry.phase) {

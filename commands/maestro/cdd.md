@@ -536,39 +536,53 @@ If maestro/workspace.json exists:
 
 ### Step 4.5: Knowledge System Initialization (v1.10.1+)
 
+**CRITICAL: You MUST call the `cdd_activate` MCP tool to initialize the Knowledge System.**
+
 ```
 Initialize the context-aware learning system BEFORE display:
 
-1. LOAD Knowledge Store:
-   - Ensure maestro/knowledge/ directory exists
-   - Load or build knowledge index for branch
-   - Initialize KnowledgeStore with branch context
-   - Count entries by type
+REQUIRED ACTION - Call MCP tool:
+  Use the cdd_activate tool with:
+  {
+    "branch": "<current git branch>",
+    "sessionId": "<generated or provided>",
+    "trackId": "<active track if any>"
+  }
 
-2. INITIALIZE Learning Journal:
-   - Start new journal session with sessionId
-   - Link to current branch and track
-   - Enable real-time capture
+  This tool will:
+  1. LOAD Knowledge Store:
+     - Ensure maestro/knowledge/ directory exists
+     - Load or build knowledge index for branch
+     - Initialize KnowledgeStore with branch context
+     - Count entries by type
 
-3. START Context Enrichment:
-   - Initialize ContextEnrichment engine
-   - Connect to KnowledgeRecall for task enrichment
-   - Enable decision capture triggers
-   - Enable phase completion hooks
+  2. INITIALIZE Learning Journal:
+     - Start new journal session with sessionId
+     - Link to current branch and track
+     - Enable real-time capture
 
-4. CONFIGURE Feedback Loop:
-   - Track which knowledge is injected into tasks
-   - Prepare to record outcomes after task completion
-   - Enable success/failure tracking for used knowledge
+  3. START Context Enrichment:
+     - Initialize ContextEnrichment engine
+     - Connect to KnowledgeRecall for task enrichment
+     - Enable decision capture triggers
+     - Enable phase completion hooks
 
-5. PREPARE Knowledge Summary for display:
-   - Get total entries count
-   - Get breakdown by type (decisions, patterns, other)
-   - Get 2-3 most recent decisions
-   - Determine learning status (active/inactive)
+  4. CONFIGURE Feedback Loop:
+     - Track which knowledge is injected into tasks
+     - Prepare to record outcomes after task completion
+     - Enable success/failure tracking for used knowledge
+
+  5. RETURN Knowledge Summary for display:
+     - Get total entries count
+     - Get breakdown by type (decisions, patterns, other)
+     - Get 2-3 most recent decisions
+     - Determine learning status (active/inactive)
+
+The tool returns a `formattedKnowledgeStatus` field that contains the
+pre-formatted Knowledge System box to display.
 
 Note: If knowledge directory doesn't exist or is empty,
-display "No knowledge captured yet" instead of stats.
+the tool will display "Store: Empty (no knowledge captured yet)".
 ```
 
 ### Step 5: Display CDD Mode Summary
