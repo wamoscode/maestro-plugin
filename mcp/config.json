@@ -1,6 +1,6 @@
 {
   "name": "maestro-mcp",
-  "version": "1.10.3",
+  "version": "1.10.4",
   "description": "MCP server for Maestro plugin - provides advanced orchestration and multi-branch session capabilities",
   "server": {
     "type": "stdio",
@@ -235,6 +235,27 @@
           }
         },
         "required": ["executionId"]
+      }
+    },
+    {
+      "name": "cdd_activate",
+      "description": "Activate CDD mode with full Knowledge System initialization. Call this when /maestro:cdd is invoked to properly initialize the learning session.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "branch": {
+            "type": "string",
+            "description": "Git branch name (auto-detected if not provided)"
+          },
+          "sessionId": {
+            "type": "string",
+            "description": "Session identifier (auto-generated if not provided)"
+          },
+          "trackId": {
+            "type": "string",
+            "description": "Active track ID if any"
+          }
+        }
       }
     },
     {

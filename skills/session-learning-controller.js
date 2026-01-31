@@ -106,8 +106,11 @@ class SessionLearningController {
 
       this.initialized = true;
 
-      // Load session history if exists
-      const historyLoaded = this.loadSessionHistory(branch);
+      // Load session history if exists (imports high-confidence entries from past sessions)
+      const historyResult = this.loadSessionHistory(branch, {
+        importEntries: options.importHistory !== false,
+        maxSessions: options.maxHistorySessions || 3
+      });
 
       return {
         success: true,
@@ -115,8 +118,13 @@ class SessionLearningController {
         branch: this.branch,
         initialized: true,
         knowledgeStats: this.knowledgeStore.getStats(branch),
-        historyLoaded: historyLoaded,
-        message: `Learning session initialized for branch "${branch}"`
+        historyLoaded: historyResult.loaded,
+        historyDetails: {
+          sessionsFound: historyResult.sessionsFound,
+          entriesImported: historyResult.entriesImported,
+          recentSessions: historyResult.recentSessions
+        },
+        message: `Learning session initialized for branch "${branch}"${historyResult.entriesImported > 0 ? ` (imported ${historyResult.entriesImported} entries from history)` : ''}`
       };
     } catch (error) {
       return {
@@ -600,9 +608,17 @@ class SessionLearningController {
   /**
    * Load session history
    * @param {string} branch - Branch name
-   * @returns {boolean} True if history loaded
+   * @param {Object} options - Load options
+   * @returns {Object} History load result
    */
-  loadSessionHistory(branch) {
+  loadSessionHistory(branch, options = {}) {
+    const result = {
+      loaded: false,
+      sessionsFound: 0,
+      entriesImported: 0,
+      recentSessions: []
+    };
+
     try {
       const sessionsPath = path.join(
         this.config.maestroDir,
@@ -611,10 +627,10 @@ class SessionLearningController {
       );
 
       if (!fs.existsSync(sessionsPath)) {
-        return false;
+        return result;
       }
 
-      // Find most recent session for this branch
+      // Find all sessions for this branch
       const files = fs.readdirSync(sessionsPath)
         .filter(f => f.endsWith('.json'))
         .map(f => ({
@@ -624,23 +640,74 @@ class SessionLearningController {
         }))
         .sort((a, b) => b.mtime - a.mtime);
 
+      const branchSessions = [];
+      const maxSessionsToImport = options.maxSessions || 5;
+      const importEntries = options.importEntries !== false;
+
       for (const file of files) {
         try {
           const content = fs.readFileSync(file.path, 'utf8');
           const session = JSON.parse(content);
 
-          if (session.branch === branch) {
-            // Don't load entries, just note that history exists
-            return true;
+          if (session.branch === branch && session.sessionId !== this.sessionId) {
+            branchSessions.push({
+              file: file,
+              session: session
+            });
           }
         } catch (parseError) {
           continue;
         }
       }
 
-      return false;
+      result.sessionsFound = branchSessions.length;
+
+      if (branchSessions.length === 0) {
+        return result;
+      }
+
+      // Record recent sessions for reference
+      result.recentSessions = branchSessions.slice(0, 3).map(bs => ({
+        sessionId: bs.session.sessionId,
+        startedAt: bs.session.startedAt,
+        entriesCount: bs.session.entries?.length || 0
+      }));
+
+      // Import entries from recent sessions if enabled
+      if (importEntries) {
+        const sessionsToImport = branchSessions.slice(0, maxSessionsToImport);
+
+        for (const { session } of sessionsToImport) {
+          if (session.entries && Array.isArray(session.entries)) {
+            // Filter entries worth importing (high confidence, recent)
+            const worthyEntries = session.entries.filter(entry => {
+              // Only import high-confidence decisions and discoveries
+              if (entry.type === 'decision' && entry.confidence >= 0.7) return true;
+              if (entry.type === 'discovery' && entry.confidence >= 0.6) return true;
+              if (entry.type === 'blocker' && entry.details?.resolved) return true;
+              return false;
+            });
+
+            // Create a temporary journal to merge from
+            const LearningJournal = require('./learning-journal');
+            const tempJournal = new LearningJournal();
+            tempJournal.entries = worthyEntries;
+
+            // Merge into current journal
+            const mergeResult = this.learningJournal.mergeFrom(tempJournal);
+            if (mergeResult.success) {
+              result.entriesImported += mergeResult.entriesAdded || 0;
+            }
+          }
+        }
+      }
+
+      result.loaded = result.sessionsFound > 0;
+      return result;
+
     } catch (error) {
-      return false;
+      result.error = error.message;
+      return result;
     }
   }
 

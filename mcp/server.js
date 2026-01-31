@@ -25,6 +25,15 @@ try {
   SyncEngine = null;
 }
 
+// Import CDD Activator
+let CDDActivator;
+try {
+  CDDActivator = require('../skills/cdd-activator');
+} catch (e) {
+  // CDD Activator not available
+  CDDActivator = null;
+}
+
 class MaestroMCPServer {
   constructor() {
     this.config = this.loadConfig();
@@ -48,6 +57,15 @@ class MaestroMCPServer {
     // Initialize sync engine if available
     this.syncEngine = null;
     this.initializeSyncEngine();
+
+    // Initialize CDD activator if available
+    this.cddActivator = null;
+    if (CDDActivator) {
+      this.cddActivator = new CDDActivator({
+        maestroDir: 'maestro',
+        enableLearning: true
+      });
+    }
   }
 
   /**
@@ -252,6 +270,10 @@ class MaestroMCPServer {
 
       case 'sync_config':
         return await this.toolSyncConfig(args);
+
+      // CDD activation tool
+      case 'cdd_activate':
+        return this.toolCDDActivate(args);
 
       // Learning system tools
       case 'learning_init':
@@ -898,6 +920,60 @@ class MaestroMCPServer {
         text: JSON.stringify({
           error: 'Sync engine not available',
           message: 'Platform sync is not configured or initialized'
+        }, null, 2)
+      }]
+    };
+  }
+
+  // ==========================================
+  // CDD Activation Tool
+  // ==========================================
+
+  /**
+   * Tool: Activate CDD mode with Knowledge System initialization
+   * This is the main entry point called when /maestro:cdd is invoked
+   */
+  toolCDDActivate(args) {
+    if (!this.cddActivator) {
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            action: 'cdd_activate',
+            success: false,
+            error: 'CDD Activator not available',
+            message: 'The CDD activation system is not properly initialized'
+          }, null, 2)
+        }]
+      };
+    }
+
+    const { branch, sessionId, trackId } = args;
+
+    // Activate CDD mode with full knowledge system initialization
+    const result = this.cddActivator.activate({
+      branch: branch,
+      sessionId: sessionId,
+      trackId: trackId
+    });
+
+    // Also initialize the hooks learning session for execution tracking
+    if (result.success && result.knowledgeSystem.initialized) {
+      this.hooks.initializeLearningSession(
+        result.branch,
+        result.sessionId,
+        { trackId: trackId }
+      );
+    }
+
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          action: 'cdd_activate',
+          ...result,
+          // Include formatted status for display
+          formattedKnowledgeStatus: this.cddActivator.getFormattedKnowledgeStatus()
         }, null, 2)
       }]
     };
