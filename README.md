@@ -6,7 +6,9 @@ A comprehensive orchestration plugin that bundles 40+ specialized sub-agents for
 
 Maestro acts as a master orchestrator—like a skilled conductor leading an orchestra—analyzing user tasks, determining the optimal sub-agent(s) to invoke, coordinating their execution (parallel or sequential), and synthesizing their results into cohesive deliverables.
 
-**New in v1.12**: Knowledge Hydration - bootstrap your Knowledge System from existing git history. Extracts decisions, patterns, entities, and learnings from commits and GitHub PRs to onboard new projects instantly.
+**New in v1.13**: Enhanced Knowledge Hydration - smart commit grouping, auto-generated feature documentation, ADR detection, dependency tracking, and architecture pattern analysis.
+
+**v1.12**: Knowledge Hydration - bootstrap your Knowledge System from existing git history.
 
 **v1.11**: Added observability tools (health_check, kb_backup, kb_restore), diagram generation, and Notion adapter.
 
@@ -761,9 +763,16 @@ Impact: Positive
 
 This feedback improves future knowledge relevance scoring.
 
-## Knowledge Hydration (v1.12)
+## Knowledge Hydration (v1.12, Enhanced in v1.13)
 
 Bootstrap your Knowledge System from existing git history. Perfect for onboarding existing projects to CDD or recovering knowledge from repositories without prior CDD usage.
+
+**v1.13 Enhancements:**
+- Smart commit grouping by tickets, branches, scopes, or semantic similarity
+- Auto-generated feature documentation in Markdown
+- ADR (Architecture Decision Record) auto-detection and generation
+- Dependency change tracking (npm, Python, Go, Rust)
+- Architecture pattern detection (hexagonal, DDD, MVC, microservices, etc.)
 
 ### Quick Start
 
@@ -779,6 +788,12 @@ Bootstrap your Knowledge System from existing git history. Perfect for onboardin
 
 # Preview what would be extracted
 /maestro:hydrate --preview
+
+# Generate feature documentation and ADRs (v1.13)
+/maestro:hydrate --generate-docs --generate-adrs
+
+# Group commits by ticket IDs
+/maestro:hydrate --group-by ticket
 ```
 
 ### What Gets Extracted
@@ -791,6 +806,118 @@ Bootstrap your Knowledge System from existing git history. Perfect for onboardin
 | Refactors (`refactor`) | Patterns, Decisions | Code improvement approaches |
 | Reverts | Learnings | "What not to do" insights |
 | PR discussions | Decisions, Learnings | Review insights, rationale |
+
+### Smart Commit Grouping (v1.13)
+
+Commits can be grouped into logical features using multiple strategies:
+
+| Strategy | Description | Example Pattern |
+|----------|-------------|-----------------|
+| `ticket` | Group by ticket/issue IDs | `JIRA-123`, `#456`, `GH-789` |
+| `branch` | Group by feature branch from merge commits | `feature/user-auth` |
+| `scope` | Group by conventional commit scope | `feat(auth):`, `fix(api):` |
+| `semantic` | Cluster by content similarity (TF-IDF) | Similar descriptions |
+| `auto` | Combine all strategies with priority ranking | Best match wins |
+
+```bash
+# Group by JIRA/GitHub ticket IDs
+/maestro:hydrate --group-by ticket
+
+# Group by feature branch names
+/maestro:hydrate --group-by branch
+
+# Group by conventional commit scopes
+/maestro:hydrate --group-by scope
+
+# Use semantic similarity clustering
+/maestro:hydrate --group-by semantic
+
+# Auto-detect best grouping (default)
+/maestro:hydrate --group-by auto
+```
+
+### Feature Documentation (v1.13)
+
+Automatically generate comprehensive Markdown documentation for each feature:
+
+```bash
+/maestro:hydrate --generate-docs
+```
+
+**Output Structure:**
+```
+maestro/features/
+├── index.md                    # Feature index with links
+├── timeline.md                 # Chronological timeline with Gantt chart
+├── AUTH-001-user-auth.md       # Individual feature docs
+├── PAY-002-payment-flow.md
+└── API-003-rest-endpoints.md
+```
+
+**Feature Document Contents:**
+- Summary and metadata (type, status, date range, commit count)
+- Detailed change table with commits and files
+- Related tickets and issues
+- Key files touched
+- Timeline with Mermaid Gantt chart
+
+### ADR Auto-Detection (v1.13)
+
+Automatically detect and generate Architecture Decision Records from commits:
+
+```bash
+/maestro:hydrate --generate-adrs --min-confidence 0.7
+```
+
+**Detection Signals:**
+
+| Signal | Confidence | Example |
+|--------|------------|---------|
+| Breaking change (`feat!`, `BREAKING`) | 0.9 | Migration to new API |
+| "chose X over Y" pattern | 0.85 | "Chose PostgreSQL over MongoDB" |
+| Major dependency addition | 0.8 | Adding React, TypeScript |
+| Architecture keywords | 0.75 | "adopted", "migrated", "switched to" |
+| New directory structures | 0.7 | Adding `services/`, `adapters/` |
+| Config file additions | 0.65 | Adding tsconfig.json, .eslintrc |
+
+**ADR Output:**
+```
+maestro/decisions/
+├── index.md               # ADR index
+├── ADR-001-jwt-auth.md
+├── ADR-002-postgres-db.md
+└── ADR-003-react-query.md
+```
+
+### Dependency Tracking (v1.13)
+
+Track technology decisions from package manifest changes:
+
+**Supported Files:**
+- `package.json` (npm/Node.js)
+- `requirements.txt` (Python)
+- `go.mod` (Go)
+- `Cargo.toml` (Rust)
+
+**What's Detected:**
+- New framework/library adoptions
+- Technology migrations (e.g., Redux → React Query)
+- Major version upgrades
+- DevTool and testing library changes
+
+### Architecture Analysis (v1.13)
+
+Detect architecture patterns from directory structure:
+
+| Pattern | Indicators |
+|---------|------------|
+| Hexagonal | `ports/`, `adapters/`, `domain/` |
+| DDD | `aggregates/`, `entities/`, `repositories/` |
+| MVC | `models/`, `views/`, `controllers/` |
+| Clean Architecture | `usecases/`, `interfaces/`, `domain/` |
+| Microservices | `services/*`, multiple package.json files |
+| Monorepo | `packages/*`, workspaces configuration |
+| Layered | `presentation/`, `business/`, `data/` |
 
 ### Multi-Repository Support
 
@@ -1312,8 +1439,10 @@ If you need to configure it manually (for development or custom setups), add to 
 - `sync_config` - Get or update sync configuration
 
 **Knowledge Tools:**
-- `hydrate_knowledge` - Bootstrap knowledge from git history
+- `hydrate_knowledge` - Bootstrap knowledge from git history (enhanced in v1.13)
 - `hydrate_status` - Get hydration status and progress
+- `generate_feature_docs` - Generate feature documentation from commit groups (v1.13)
+- `generate_adrs` - Generate Architecture Decision Records (v1.13)
 - `health_check` - Check system health status
 - `kb_backup` - Backup knowledge store
 - `kb_restore` - Restore knowledge from backup
@@ -1393,9 +1522,14 @@ maestro-plugin/
 │   ├── knowledge-recall.js # Knowledge retrieval (v1.9)
 │   ├── context-enrichment.js  # Auto-enrichment (v1.9)
 │   ├── workspace-scanner.js   # Multi-repo detection (v1.12)
-│   ├── git-history-parser.js  # Commit parsing (v1.12)
+│   ├── git-history-parser.js  # Commit parsing (v1.12, enhanced v1.13)
 │   ├── knowledge-extractor.js # Knowledge extraction (v1.12)
-│   ├── hydration-manager.js   # Hydration orchestration (v1.12)
+│   ├── hydration-manager.js   # Hydration orchestration (v1.12, enhanced v1.13)
+│   ├── feature-grouper.js     # Commit grouping strategies (v1.13)
+│   ├── feature-documenter.js  # Feature doc generation (v1.13)
+│   ├── adr-detector.js        # ADR detection and generation (v1.13)
+│   ├── dependency-analyzer.js # Dependency change tracking (v1.13)
+│   ├── structure-analyzer.js  # Architecture pattern analysis (v1.13)
 │   ├── knowledge-capture.js   # ADRs and retrospectives
 │   ├── context-versioning.js
 │   ├── quality-gates.js
