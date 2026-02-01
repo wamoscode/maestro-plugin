@@ -467,6 +467,7 @@ class HydrationManager {
       name: repo.name,
       path: repo.path,
       commitsProcessed: 0,
+      commits: [], // Store parsed commits for downstream processing
       entriesCreated: {
         decisions: 0,
         patterns: 0,
@@ -519,6 +520,7 @@ class HydrationManager {
       }
 
       result.commitsProcessed = parseResult.totalParsed;
+      result.commits = parseResult.commits; // Store commits for downstream processing
 
       // Extract knowledge
       if (onProgress) {
@@ -528,7 +530,14 @@ class HydrationManager {
         });
       }
 
-      const extractResult = extractor.extractFromCommits(parseResult.commits, options);
+      const extractResult = extractor.extractFromCommits(parseResult.commits, options, (progress) => {
+        if (onProgress) {
+          onProgress({
+            step: 'extracting',
+            ...progress
+          });
+        }
+      });
 
       // Save extracted knowledge
       if (onProgress) {

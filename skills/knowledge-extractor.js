@@ -92,9 +92,10 @@ class KnowledgeExtractor {
    * Extract all knowledge from parsed commits
    * @param {Array} commits - Parsed commits from GitHistoryParser
    * @param {Object} options - Extraction options
+   * @param {Function} onProgress - Optional progress callback
    * @returns {Object} Extracted knowledge
    */
-  extractFromCommits(commits, options = {}) {
+  extractFromCommits(commits, options = {}, onProgress = null) {
     const result = {
       decisions: [],
       entities: [],
@@ -116,8 +117,23 @@ class KnowledgeExtractor {
     // Reset content hashes for new extraction
     this.contentHashes.clear();
 
+    const totalCommits = commits.length;
+    const batchSize = options.batchSize || 50;
+
     // First pass: Extract direct knowledge from each commit
-    for (const commit of commits) {
+    for (let i = 0; i < commits.length; i++) {
+      const commit = commits[i];
+
+      // Report progress periodically
+      if (onProgress && i % batchSize === 0) {
+        onProgress({
+          step: 'extracting',
+          current: i + 1,
+          total: totalCommits,
+          percent: Math.round(((i + 1) / totalCommits) * 100),
+          lastCommit: commit?.shortHash || commit?.hash?.substring(0, 7)
+        });
+      }
       // Extract decisions
       const decisions = this.extractDecisions(commit);
       for (const decision of decisions) {
