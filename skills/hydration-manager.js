@@ -47,6 +47,83 @@ try {
   StructureAnalyzer = require('./structure-analyzer');
 } catch (e) { /* Optional */ }
 
+/**
+ * ParallelProgressAggregator
+ *
+ * Tracks progress from multiple concurrent operations and emits
+ * unified weighted progress events for parallel analysis execution.
+ */
+class ParallelProgressAggregator {
+  /**
+   * @param {Array<{name: string, weight: number}>} operations - Operations to track with weights
+   * @param {Function} onProgress - Progress callback function
+   */
+  constructor(operations, onProgress) {
+    this.operations = operations;
+    this.progress = new Map();
+    this.onProgress = onProgress;
+    this.totalWeight = operations.reduce((sum, op) => sum + op.weight, 0);
+
+    // Initialize all operations to 0%
+    for (const op of operations) {
+      this.progress.set(op.name, { percent: 0, status: 'pending' });
+    }
+  }
+
+  /**
+   * Update progress for a specific operation
+   * @param {string} operationName - Name of the operation
+   * @param {Object} progressData - Progress data with percent and optional status/message
+   */
+  update(operationName, progressData) {
+    const current = this.progress.get(operationName) || { percent: 0 };
+    this.progress.set(operationName, { ...current, ...progressData });
+    this.emitAggregatedProgress();
+  }
+
+  /**
+   * Emit aggregated progress to the callback
+   */
+  emitAggregatedProgress() {
+    let weightedProgress = 0;
+    const details = {};
+
+    // Guard against division by zero when no operations
+    if (this.totalWeight > 0) {
+      for (const op of this.operations) {
+        const prog = this.progress.get(op.name) || { percent: 0 };
+        details[op.name] = prog;
+        weightedProgress += (prog.percent || 0) * (op.weight / this.totalWeight);
+      }
+    }
+
+    if (this.onProgress) {
+      this.onProgress({
+        phase: 'parallel-analysis',
+        overallPercent: Math.round(weightedProgress),
+        operations: details
+      });
+    }
+  }
+
+  /**
+   * Mark an operation as complete
+   * @param {string} operationName - Name of the operation
+   */
+  complete(operationName) {
+    this.update(operationName, { percent: 100, status: 'complete' });
+  }
+
+  /**
+   * Mark an operation as failed
+   * @param {string} operationName - Name of the operation
+   * @param {string} error - Error message
+   */
+  fail(operationName, error) {
+    this.update(operationName, { percent: 0, status: 'failed', error });
+  }
+}
+
 class HydrationManager {
   constructor(config = {}) {
     this.config = {
@@ -265,7 +342,20 @@ class HydrationManager {
     if (this.isRunning) {
       return {
         success: false,
-        error: 'Hydration already in progress'
+        error: 'Hydration already in progress',
+        mode: options.mode || 'full',
+        startTime: null,
+        endTime: null,
+        repositories: [],
+        totalCommits: 0,
+        entriesCreated: {
+          decisions: 0,
+          patterns: 0,
+          entities: 0,
+          learnings: 0,
+          tracks: 0
+        },
+        errors: [{ type: 'concurrent', message: 'Hydration already in progress' }]
       };
     }
 
@@ -365,56 +455,111 @@ class HydrationManager {
         }
       }
 
-      // Feature grouping and documentation
-      if (options.generateDocs && FeatureGrouper && FeatureDocumenter && allCommits.length > 0) {
-        if (onProgress) {
-          onProgress({
-            phase: 'feature-docs',
-            message: 'Generating feature documentation'
-          });
+      // Check if any enhanced analysis is requested
+      const hasEnhancedOptions = options.generateDocs || options.generateAdrs ||
+        options.trackDependencies || options.analyzeStructure;
+
+      if (hasEnhancedOptions && allCommits.length > 0) {
+        // Phase 4a: Run INDEPENDENT analyzers in PARALLEL
+        // DependencyAnalyzer, StructureAnalyzer, and FeatureGrouper can run concurrently
+        const needsParallelAnalysis =
+          (options.trackDependencies && DependencyAnalyzer) ||
+          (options.analyzeStructure && StructureAnalyzer) ||
+          (options.generateDocs && FeatureGrouper);
+
+        let parallelResults = null;
+
+        if (needsParallelAnalysis) {
+          if (onProgress) {
+            onProgress({
+              phase: 'parallel-analysis',
+              message: 'Running parallel analysis (dependencies, structure, feature grouping)'
+            });
+          }
+
+          parallelResults = await this.runParallelAnalysis(allCommits, {
+            trackDependencies: options.trackDependencies,
+            analyzeStructure: options.analyzeStructure,
+            generateDocs: options.generateDocs,
+            groupBy: options.groupBy,
+            minGroupSize: options.minGroupSize,
+            semanticThreshold: options.semanticThreshold,
+            includeUngrouped: options.includeUngrouped
+          }, onProgress);
+
+          // Store parallel results in final result
+          if (parallelResults.dependencies) {
+            result.dependencyAnalysis = {
+              success: parallelResults.dependencies.success,
+              changes: parallelResults.dependencies.changes?.length || 0,
+              timeline: parallelResults.dependencies.timeline,
+              decisions: parallelResults.dependencies.decisions,
+              statistics: parallelResults.dependencies.statistics,
+              historyPath: parallelResults.dependencies.historyPath
+            };
+          }
+
+          if (parallelResults.structure) {
+            result.structureAnalysis = {
+              success: parallelResults.structure.success,
+              directoryChanges: parallelResults.structure.directoryChanges?.length || 0,
+              detectedPatterns: parallelResults.structure.detectedPatterns,
+              architectureEvolution: parallelResults.structure.architectureEvolution,
+              statistics: parallelResults.structure.statistics,
+              summary: parallelResults.structure.summary
+            };
+          }
+
+          // Add any parallel execution errors
+          if (parallelResults.errors?.length > 0) {
+            result.errors.push(...parallelResults.errors.map(e => ({
+              type: 'parallel-analysis',
+              ...e
+            })));
+          }
         }
 
-        const docsResult = await this.generateFeatureDocumentation(allCommits, options, onProgress);
-        result.featureDocumentation = docsResult;
-      }
+        // Phase 4b: Run DEPENDENT operations SEQUENTIALLY
+        // Feature documentation depends on feature grouping results
+        if (options.generateDocs && FeatureGrouper && FeatureDocumenter) {
+          if (onProgress) {
+            onProgress({
+              phase: 'feature-docs',
+              message: 'Generating feature documentation'
+            });
+          }
 
-      // ADR detection and generation
-      if (options.generateAdrs && ADRDetector && allCommits.length > 0) {
-        if (onProgress) {
-          onProgress({
-            phase: 'adrs',
-            message: 'Detecting and generating ADRs'
-          });
+          // Use pre-computed feature groups if available
+          const docsResult = await this.generateFeatureDocumentationFromGroups(
+            allCommits,
+            parallelResults?.featureGroups,
+            options,
+            onProgress
+          );
+          result.featureDocumentation = docsResult;
         }
 
-        const adrResult = await this.generateADRs(allCommits, options, onProgress);
-        result.adrGeneration = adrResult;
-      }
+        // ADR detection uses dependency and structure results for enrichment
+        if (options.generateAdrs && ADRDetector) {
+          if (onProgress) {
+            onProgress({
+              phase: 'adrs',
+              message: 'Detecting and generating ADRs'
+            });
+          }
 
-      // Dependency tracking
-      if (options.trackDependencies && DependencyAnalyzer && allCommits.length > 0) {
-        if (onProgress) {
-          onProgress({
-            phase: 'dependencies',
-            message: 'Analyzing dependency changes'
-          });
+          // Pass precomputed analysis to avoid redundant work
+          const adrResult = await this.generateADRs(
+            allCommits,
+            options,
+            onProgress,
+            {
+              dependencyChanges: parallelResults?.dependencies?.changes,
+              structureChanges: parallelResults?.structure?.significantChanges
+            }
+          );
+          result.adrGeneration = adrResult;
         }
-
-        const depResult = await this.analyzeDependencies(allCommits, options);
-        result.dependencyAnalysis = depResult;
-      }
-
-      // Structure analysis
-      if (options.analyzeStructure && StructureAnalyzer && allCommits.length > 0) {
-        if (onProgress) {
-          onProgress({
-            phase: 'structure',
-            message: 'Analyzing directory structure'
-          });
-        }
-
-        const structResult = await this.analyzeStructure(allCommits, options);
-        result.structureAnalysis = structResult;
       }
 
       // Update state
@@ -875,13 +1020,96 @@ class HydrationManager {
   }
 
   /**
+   * Generate feature documentation using precomputed feature groups
+   * @param {Array} commits - All parsed commits (fallback if no groups provided)
+   * @param {Object} featureGroups - Precomputed feature groups from parallel execution
+   * @param {Object} options - Generation options
+   * @param {Function} onProgress - Progress callback
+   * @returns {Object} Documentation result
+   */
+  async generateFeatureDocumentationFromGroups(commits, featureGroups, options, onProgress) {
+    if (!FeatureDocumenter) {
+      return { success: false, error: 'Feature documenter not available' };
+    }
+
+    try {
+      const documenter = new FeatureDocumenter({
+        maestroDir: this.config.maestroDir,
+        generateIndex: true,
+        generateTimeline: true
+      });
+
+      // Use precomputed groups or compute if not available
+      let groupResult = featureGroups;
+
+      if (!groupResult && FeatureGrouper) {
+        if (onProgress) {
+          onProgress({
+            phase: 'feature-docs',
+            step: 'grouping',
+            message: 'Grouping commits into features'
+          });
+        }
+
+        const grouper = new FeatureGrouper({
+          minGroupSize: options.minGroupSize || 1,
+          semanticSimilarityThreshold: options.semanticThreshold || 0.3
+        });
+
+        groupResult = grouper.groupCommits(commits, {
+          strategy: options.groupBy || 'auto',
+          includeUngrouped: options.includeUngrouped !== false
+        });
+      }
+
+      if (!groupResult) {
+        return { success: false, error: 'No feature groups available' };
+      }
+
+      // Generate documentation
+      if (onProgress) {
+        onProgress({
+          phase: 'feature-docs',
+          step: 'documenting',
+          message: `Generating docs for ${groupResult.totalGroups} features`
+        });
+      }
+
+      const docResult = documenter.generateDocumentation(groupResult, options);
+
+      return {
+        success: true,
+        grouping: {
+          strategy: groupResult.strategy,
+          totalGroups: groupResult.totalGroups,
+          statistics: groupResult.statistics
+        },
+        documentation: {
+          featuresDocumented: docResult.statistics.featuresDocumented,
+          indexPath: docResult.indexPath,
+          timelinePath: docResult.timelinePath,
+          documents: docResult.documents.map(d => ({
+            id: d.id,
+            name: d.name,
+            fileName: d.fileName,
+            commitCount: d.commitCount
+          }))
+        }
+      };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Generate ADRs from commits
    * @param {Array} commits - All parsed commits
    * @param {Object} options - Generation options
    * @param {Function} onProgress - Progress callback
+   * @param {Object} precomputedAnalysis - Optional precomputed dependency/structure analysis
    * @returns {Object} ADR generation result
    */
-  async generateADRs(commits, options, onProgress) {
+  async generateADRs(commits, options, onProgress, precomputedAnalysis = null) {
     if (!ADRDetector) {
       return { success: false, error: 'ADR detector not available' };
     }
@@ -901,9 +1129,12 @@ class HydrationManager {
         });
       }
 
-      // Get dependency changes if analyzer available
-      let dependencyChanges = null;
-      if (DependencyAnalyzer) {
+      // Use precomputed results if available, otherwise compute
+      let dependencyChanges = precomputedAnalysis?.dependencyChanges || null;
+      let structureChanges = precomputedAnalysis?.structureChanges || null;
+
+      // Only run analyzers if precomputed results not available
+      if (!dependencyChanges && DependencyAnalyzer) {
         const depAnalyzer = new DependencyAnalyzer({
           repoPath: this.config.rootPath || process.cwd(),
           maestroDir: this.config.maestroDir
@@ -912,9 +1143,7 @@ class HydrationManager {
         dependencyChanges = depResult.changes;
       }
 
-      // Get structure changes if analyzer available
-      let structureChanges = null;
-      if (StructureAnalyzer) {
+      if (!structureChanges && StructureAnalyzer) {
         const structAnalyzer = new StructureAnalyzer({
           repoPath: this.config.rootPath || process.cwd(),
           maestroDir: this.config.maestroDir
@@ -1019,8 +1248,284 @@ class HydrationManager {
     }
   }
 
+  // ==========================================
+  // Parallel Execution Methods
+  // ==========================================
+
+  /**
+   * Run independent analyzers in parallel
+   * @param {Array} commits - All parsed commits
+   * @param {Object} options - Analysis options
+   * @param {Function} onProgress - Progress callback
+   * @returns {Object} Aggregated results from all analyzers
+   */
+  async runParallelAnalysis(commits, options, onProgress) {
+    const operations = [];
+    const operationConfigs = [];
+
+    // Build list of enabled operations with weights
+    if (options.trackDependencies && DependencyAnalyzer) {
+      operationConfigs.push({ name: 'dependencies', weight: 3 });
+    }
+    if (options.analyzeStructure && StructureAnalyzer) {
+      operationConfigs.push({ name: 'structure', weight: 2 });
+    }
+    if (options.generateDocs && FeatureGrouper) {
+      operationConfigs.push({ name: 'featureGrouping', weight: 2 });
+    }
+
+    // Early return if no operations to run
+    if (operationConfigs.length === 0) {
+      return {
+        success: true,
+        dependencies: null,
+        structure: null,
+        featureGroups: null,
+        errors: []
+      };
+    }
+
+    // Create progress aggregator
+    const progressAggregator = new ParallelProgressAggregator(
+      operationConfigs,
+      onProgress
+    );
+
+    // Add enabled operations
+    if (options.trackDependencies && DependencyAnalyzer) {
+      operations.push(
+        this.runDependencyAnalysisAsync(commits, options, progressAggregator)
+      );
+    }
+    if (options.analyzeStructure && StructureAnalyzer) {
+      operations.push(
+        this.runStructureAnalysisAsync(commits, options, progressAggregator)
+      );
+    }
+    if (options.generateDocs && FeatureGrouper) {
+      operations.push(
+        this.runFeatureGroupingAsync(commits, options, progressAggregator)
+      );
+    }
+
+    // Run all operations in parallel
+    const results = await Promise.allSettled(operations);
+
+    // Aggregate results
+    return this.aggregateParallelResults(results, operationConfigs);
+  }
+
+  /**
+   * Run dependency analysis asynchronously
+   * @param {Array} commits - Commits to analyze
+   * @param {Object} options - Analysis options
+   * @param {ParallelProgressAggregator} progressAggregator - Progress tracker
+   * @returns {Object} Analysis result with operation name
+   */
+  async runDependencyAnalysisAsync(commits, options, progressAggregator) {
+    const operationName = 'dependencies';
+
+    try {
+      progressAggregator.update(operationName, {
+        percent: 10,
+        status: 'running',
+        message: 'Analyzing dependency changes'
+      });
+
+      const analyzer = new DependencyAnalyzer({
+        repoPath: this.config.rootPath || process.cwd(),
+        maestroDir: this.config.maestroDir
+      });
+
+      const result = await analyzer.analyzeFromCommits(commits, options);
+
+      progressAggregator.update(operationName, { percent: 80, message: 'Saving history' });
+
+      // Save history
+      const historyPath = analyzer.saveHistory(result);
+
+      progressAggregator.complete(operationName);
+
+      return {
+        operation: operationName,
+        success: true,
+        changes: result.changes,
+        timeline: result.timeline,
+        decisions: result.decisions,
+        statistics: result.statistics,
+        historyPath
+      };
+    } catch (error) {
+      progressAggregator.fail(operationName, error.message);
+      return {
+        operation: operationName,
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Run structure analysis asynchronously
+   * @param {Array} commits - Commits to analyze
+   * @param {Object} options - Analysis options
+   * @param {ParallelProgressAggregator} progressAggregator - Progress tracker
+   * @returns {Object} Analysis result with operation name
+   */
+  async runStructureAnalysisAsync(commits, options, progressAggregator) {
+    const operationName = 'structure';
+
+    try {
+      progressAggregator.update(operationName, {
+        percent: 10,
+        status: 'running',
+        message: 'Analyzing directory structure'
+      });
+
+      const analyzer = new StructureAnalyzer({
+        repoPath: this.config.rootPath || process.cwd(),
+        maestroDir: this.config.maestroDir
+      });
+
+      progressAggregator.update(operationName, { percent: 50, message: 'Processing commits' });
+
+      const result = analyzer.analyzeFromCommits(commits, options);
+
+      progressAggregator.update(operationName, { percent: 90, message: 'Generating summary' });
+
+      const summary = analyzer.generateStructureSummary(result);
+
+      progressAggregator.complete(operationName);
+
+      return {
+        operation: operationName,
+        success: true,
+        directoryChanges: result.directoryChanges,
+        significantChanges: result.significantChanges,
+        detectedPatterns: result.detectedPatterns,
+        architectureEvolution: result.architectureEvolution,
+        statistics: result.statistics,
+        summary
+      };
+    } catch (error) {
+      progressAggregator.fail(operationName, error.message);
+      return {
+        operation: operationName,
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Run feature grouping asynchronously
+   * @param {Array} commits - Commits to group
+   * @param {Object} options - Grouping options
+   * @param {ParallelProgressAggregator} progressAggregator - Progress tracker
+   * @returns {Object} Grouping result with operation name
+   */
+  async runFeatureGroupingAsync(commits, options, progressAggregator) {
+    const operationName = 'featureGrouping';
+
+    try {
+      progressAggregator.update(operationName, {
+        percent: 10,
+        status: 'running',
+        message: 'Grouping commits into features'
+      });
+
+      const grouper = new FeatureGrouper({
+        minGroupSize: options.minGroupSize || 1,
+        semanticSimilarityThreshold: options.semanticThreshold || 0.3
+      });
+
+      progressAggregator.update(operationName, { percent: 50, message: 'Analyzing commit patterns' });
+
+      const result = grouper.groupCommits(commits, {
+        strategy: options.groupBy || 'auto',
+        includeUngrouped: options.includeUngrouped !== false
+      });
+
+      progressAggregator.complete(operationName);
+
+      return {
+        operation: operationName,
+        success: true,
+        featureGroups: result,
+        strategy: result.strategy,
+        totalGroups: result.totalGroups,
+        statistics: result.statistics
+      };
+    } catch (error) {
+      progressAggregator.fail(operationName, error.message);
+      return {
+        operation: operationName,
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  /**
+   * Aggregate results from parallel operations
+   * @param {Array} settledResults - Results from Promise.allSettled
+   * @param {Array} operationConfigs - Operation configurations
+   * @returns {Object} Aggregated results object
+   */
+  aggregateParallelResults(settledResults, operationConfigs) {
+    const aggregated = {
+      success: true,
+      dependencies: null,
+      structure: null,
+      featureGroups: null,
+      errors: []
+    };
+
+    for (let i = 0; i < settledResults.length; i++) {
+      const settled = settledResults[i];
+      const config = operationConfigs[i];
+
+      if (settled.status === 'rejected') {
+        aggregated.errors.push({
+          operation: config.name,
+          error: settled.reason?.message || 'Unknown error'
+        });
+        aggregated.success = false;
+        continue;
+      }
+
+      const result = settled.value;
+
+      if (!result.success) {
+        aggregated.errors.push({
+          operation: result.operation,
+          error: result.error
+        });
+        // Don't mark as failed - partial results are acceptable
+        // But skip mapping failed results
+        continue;
+      }
+
+      // Map successful results to appropriate fields
+      switch (result.operation) {
+        case 'dependencies':
+          aggregated.dependencies = result;
+          break;
+        case 'structure':
+          aggregated.structure = result;
+          break;
+        case 'featureGrouping':
+          aggregated.featureGroups = result.featureGroups;
+          break;
+      }
+    }
+
+    return aggregated;
+  }
+
   /**
    * Generate all documentation in one call
+   * Uses parallel execution for independent analyzers
    * @param {Object} options - Generation options
    * @param {Function} onProgress - Progress callback
    * @returns {Object} Full generation result
@@ -1031,7 +1536,8 @@ class HydrationManager {
       features: null,
       adrs: null,
       dependencies: null,
-      structure: null
+      structure: null,
+      errors: []
     };
 
     // First, parse commits
@@ -1053,32 +1559,103 @@ class HydrationManager {
     }
 
     if (allCommits.length === 0) {
-      return { success: false, error: 'No commits found' };
+      return {
+        success: false,
+        error: 'No commits found',
+        features: null,
+        adrs: null,
+        dependencies: null,
+        structure: null,
+        errors: [{ operation: 'parse', error: 'No commits found' }]
+      };
     }
 
-    // Generate features
-    if (options.generateDocs !== false) {
-      result.features = await this.generateFeatureDocumentation(
+    // Determine which operations are needed
+    const needsDeps = options.trackDependencies !== false;
+    const needsStructure = options.analyzeStructure !== false;
+    const needsDocs = options.generateDocs !== false;
+    const needsAdrs = options.generateAdrs !== false;
+
+    // Run independent analyzers in PARALLEL
+    const needsParallelAnalysis = (needsDeps && DependencyAnalyzer) ||
+      (needsStructure && StructureAnalyzer) ||
+      (needsDocs && FeatureGrouper);
+
+    let parallelResults = null;
+
+    if (needsParallelAnalysis) {
+      if (onProgress) {
+        onProgress({
+          phase: 'parallel-analysis',
+          message: 'Running parallel analysis'
+        });
+      }
+
+      parallelResults = await this.runParallelAnalysis(allCommits, {
+        trackDependencies: needsDeps,
+        analyzeStructure: needsStructure,
+        generateDocs: needsDocs,
+        groupBy: options.groupBy,
+        minGroupSize: options.minGroupSize,
+        semanticThreshold: options.semanticThreshold,
+        includeUngrouped: options.includeUngrouped
+      }, onProgress);
+
+      // Map parallel results to final result
+      if (parallelResults.dependencies) {
+        result.dependencies = {
+          success: parallelResults.dependencies.success,
+          changes: parallelResults.dependencies.changes?.length || 0,
+          timeline: parallelResults.dependencies.timeline,
+          decisions: parallelResults.dependencies.decisions,
+          statistics: parallelResults.dependencies.statistics,
+          historyPath: parallelResults.dependencies.historyPath
+        };
+      }
+
+      if (parallelResults.structure) {
+        result.structure = {
+          success: parallelResults.structure.success,
+          directoryChanges: parallelResults.structure.directoryChanges?.length || 0,
+          detectedPatterns: parallelResults.structure.detectedPatterns,
+          architectureEvolution: parallelResults.structure.architectureEvolution,
+          statistics: parallelResults.structure.statistics,
+          summary: parallelResults.structure.summary
+        };
+      }
+
+      // Collect errors
+      if (parallelResults.errors?.length > 0) {
+        result.errors.push(...parallelResults.errors);
+      }
+    }
+
+    // Run DEPENDENT operations SEQUENTIALLY
+    // Feature documentation depends on feature grouping
+    if (needsDocs && FeatureGrouper && FeatureDocumenter) {
+      result.features = await this.generateFeatureDocumentationFromGroups(
         allCommits,
+        parallelResults?.featureGroups,
         { ...options, groupBy: options.groupBy || 'auto' },
         onProgress
       );
     }
 
-    // Generate ADRs
-    if (options.generateAdrs !== false) {
-      result.adrs = await this.generateADRs(allCommits, options, onProgress);
+    // ADR generation uses dependency and structure results
+    if (needsAdrs && ADRDetector) {
+      result.adrs = await this.generateADRs(
+        allCommits,
+        options,
+        onProgress,
+        {
+          dependencyChanges: parallelResults?.dependencies?.changes,
+          structureChanges: parallelResults?.structure?.significantChanges
+        }
+      );
     }
 
-    // Analyze dependencies
-    if (options.trackDependencies !== false) {
-      result.dependencies = await this.analyzeDependencies(allCommits, options);
-    }
-
-    // Analyze structure
-    if (options.analyzeStructure !== false) {
-      result.structure = await this.analyzeStructure(allCommits, options);
-    }
+    // Mark success based on errors
+    result.success = result.errors.length === 0;
 
     return result;
   }
