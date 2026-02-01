@@ -20,6 +20,33 @@ const GitHistoryParser = require('./git-history-parser');
 const KnowledgeExtractor = require('./knowledge-extractor');
 const KnowledgeStore = require('./knowledge-store');
 
+// New analyzers for enhanced hydration
+let FeatureGrouper;
+let FeatureDocumenter;
+let ADRDetector;
+let DependencyAnalyzer;
+let StructureAnalyzer;
+
+try {
+  FeatureGrouper = require('./feature-grouper');
+} catch (e) { /* Optional */ }
+
+try {
+  FeatureDocumenter = require('./feature-documenter');
+} catch (e) { /* Optional */ }
+
+try {
+  ADRDetector = require('./adr-detector');
+} catch (e) { /* Optional */ }
+
+try {
+  DependencyAnalyzer = require('./dependency-analyzer');
+} catch (e) { /* Optional */ }
+
+try {
+  StructureAnalyzer = require('./structure-analyzer');
+} catch (e) { /* Optional */ }
+
 class HydrationManager {
   constructor(config = {}) {
     this.config = {
@@ -195,7 +222,19 @@ class HydrationManager {
         until: options.until || null,
         branches: options.branches || ['HEAD'],
         includeGitHub: options.includeGitHub && this.config.enableGitHub,
-        skipMergeCommits: options.skipMergeCommits || false
+        skipMergeCommits: options.skipMergeCommits || false,
+        // New enhanced options
+        groupBy: options.groupBy || 'auto',
+        generateDocs: options.generateDocs || false,
+        generateAdrs: options.generateAdrs || false,
+        trackDependencies: options.trackDependencies || false
+      },
+      capabilities: {
+        featureGrouping: !!FeatureGrouper,
+        featureDocumentation: !!FeatureDocumenter,
+        adrDetection: !!ADRDetector,
+        dependencyAnalysis: !!DependencyAnalyzer,
+        structureAnalysis: !!StructureAnalyzer
       }
     };
   }
@@ -316,6 +355,66 @@ class HydrationManager {
 
         const tracksResult = await this.createTracksFromBranches(repos, options);
         result.entriesCreated.tracks = tracksResult.created;
+      }
+
+      // Run enhanced analysis if requested
+      const allCommits = [];
+      for (const repoResult of result.repositories) {
+        if (repoResult.commits) {
+          allCommits.push(...repoResult.commits);
+        }
+      }
+
+      // Feature grouping and documentation
+      if (options.generateDocs && FeatureGrouper && FeatureDocumenter && allCommits.length > 0) {
+        if (onProgress) {
+          onProgress({
+            phase: 'feature-docs',
+            message: 'Generating feature documentation'
+          });
+        }
+
+        const docsResult = await this.generateFeatureDocumentation(allCommits, options, onProgress);
+        result.featureDocumentation = docsResult;
+      }
+
+      // ADR detection and generation
+      if (options.generateAdrs && ADRDetector && allCommits.length > 0) {
+        if (onProgress) {
+          onProgress({
+            phase: 'adrs',
+            message: 'Detecting and generating ADRs'
+          });
+        }
+
+        const adrResult = await this.generateADRs(allCommits, options, onProgress);
+        result.adrGeneration = adrResult;
+      }
+
+      // Dependency tracking
+      if (options.trackDependencies && DependencyAnalyzer && allCommits.length > 0) {
+        if (onProgress) {
+          onProgress({
+            phase: 'dependencies',
+            message: 'Analyzing dependency changes'
+          });
+        }
+
+        const depResult = await this.analyzeDependencies(allCommits, options);
+        result.dependencyAnalysis = depResult;
+      }
+
+      // Structure analysis
+      if (options.analyzeStructure && StructureAnalyzer && allCommits.length > 0) {
+        if (onProgress) {
+          onProgress({
+            phase: 'structure',
+            message: 'Analyzing directory structure'
+          });
+        }
+
+        const structResult = await this.analyzeStructure(allCommits, options);
+        result.structureAnalysis = structResult;
       }
 
       // Update state
@@ -687,6 +786,292 @@ class HydrationManager {
     }
 
     return lines.join('\n');
+  }
+
+  // ==========================================
+  // Enhanced Hydration Methods
+  // ==========================================
+
+  /**
+   * Generate feature documentation from commits
+   * @param {Array} commits - All parsed commits
+   * @param {Object} options - Generation options
+   * @param {Function} onProgress - Progress callback
+   * @returns {Object} Documentation result
+   */
+  async generateFeatureDocumentation(commits, options, onProgress) {
+    if (!FeatureGrouper || !FeatureDocumenter) {
+      return { success: false, error: 'Feature grouper or documenter not available' };
+    }
+
+    try {
+      const grouper = new FeatureGrouper({
+        minGroupSize: options.minGroupSize || 1,
+        semanticSimilarityThreshold: options.semanticThreshold || 0.3
+      });
+
+      const documenter = new FeatureDocumenter({
+        maestroDir: this.config.maestroDir,
+        generateIndex: true,
+        generateTimeline: true
+      });
+
+      // Group commits
+      if (onProgress) {
+        onProgress({
+          phase: 'feature-docs',
+          step: 'grouping',
+          message: 'Grouping commits into features'
+        });
+      }
+
+      const groupResult = grouper.groupCommits(commits, {
+        strategy: options.groupBy || 'auto',
+        includeUngrouped: options.includeUngrouped !== false
+      });
+
+      // Generate documentation
+      if (onProgress) {
+        onProgress({
+          phase: 'feature-docs',
+          step: 'documenting',
+          message: `Generating docs for ${groupResult.totalGroups} features`
+        });
+      }
+
+      const docResult = documenter.generateDocumentation(groupResult, options);
+
+      return {
+        success: true,
+        grouping: {
+          strategy: groupResult.strategy,
+          totalGroups: groupResult.totalGroups,
+          statistics: groupResult.statistics
+        },
+        documentation: {
+          featuresDocumented: docResult.statistics.featuresDocumented,
+          indexPath: docResult.indexPath,
+          timelinePath: docResult.timelinePath,
+          documents: docResult.documents.map(d => ({
+            id: d.id,
+            name: d.name,
+            fileName: d.fileName,
+            commitCount: d.commitCount
+          }))
+        }
+      };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Generate ADRs from commits
+   * @param {Array} commits - All parsed commits
+   * @param {Object} options - Generation options
+   * @param {Function} onProgress - Progress callback
+   * @returns {Object} ADR generation result
+   */
+  async generateADRs(commits, options, onProgress) {
+    if (!ADRDetector) {
+      return { success: false, error: 'ADR detector not available' };
+    }
+
+    try {
+      const detector = new ADRDetector({
+        maestroDir: this.config.maestroDir,
+        minConfidence: options.minConfidence || 0.6
+      });
+
+      // Detect ADR candidates
+      if (onProgress) {
+        onProgress({
+          phase: 'adrs',
+          step: 'detecting',
+          message: 'Detecting architectural decisions'
+        });
+      }
+
+      // Get dependency changes if analyzer available
+      let dependencyChanges = null;
+      if (DependencyAnalyzer) {
+        const depAnalyzer = new DependencyAnalyzer({
+          repoPath: this.config.rootPath || process.cwd(),
+          maestroDir: this.config.maestroDir
+        });
+        const depResult = await depAnalyzer.analyzeFromCommits(commits);
+        dependencyChanges = depResult.changes;
+      }
+
+      // Get structure changes if analyzer available
+      let structureChanges = null;
+      if (StructureAnalyzer) {
+        const structAnalyzer = new StructureAnalyzer({
+          repoPath: this.config.rootPath || process.cwd(),
+          maestroDir: this.config.maestroDir
+        });
+        const structResult = structAnalyzer.analyzeFromCommits(commits);
+        structureChanges = structResult.significantChanges;
+      }
+
+      const detectionResult = detector.detectADRs(commits, {
+        dependencyChanges,
+        structureChanges
+      });
+
+      // Generate ADR documents
+      if (onProgress) {
+        onProgress({
+          phase: 'adrs',
+          step: 'generating',
+          message: `Generating ${detectionResult.detected} ADRs`
+        });
+      }
+
+      const generateResult = detector.generateADRs(detectionResult, options);
+
+      return {
+        success: true,
+        detected: detectionResult.detected,
+        generated: generateResult.adrsGenerated,
+        indexPath: generateResult.indexPath,
+        documents: generateResult.documents,
+        statistics: detectionResult.statistics
+      };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Analyze dependency changes
+   * @param {Array} commits - All parsed commits
+   * @param {Object} options - Analysis options
+   * @returns {Object} Dependency analysis result
+   */
+  async analyzeDependencies(commits, options) {
+    if (!DependencyAnalyzer) {
+      return { success: false, error: 'Dependency analyzer not available' };
+    }
+
+    try {
+      const analyzer = new DependencyAnalyzer({
+        repoPath: this.config.rootPath || process.cwd(),
+        maestroDir: this.config.maestroDir
+      });
+
+      const result = await analyzer.analyzeFromCommits(commits, options);
+
+      // Save history
+      const historyPath = analyzer.saveHistory(result);
+
+      return {
+        success: true,
+        changes: result.changes.length,
+        timeline: result.timeline,
+        decisions: result.decisions,
+        statistics: result.statistics,
+        historyPath
+      };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Analyze directory structure changes
+   * @param {Array} commits - All parsed commits
+   * @param {Object} options - Analysis options
+   * @returns {Object} Structure analysis result
+   */
+  async analyzeStructure(commits, options) {
+    if (!StructureAnalyzer) {
+      return { success: false, error: 'Structure analyzer not available' };
+    }
+
+    try {
+      const analyzer = new StructureAnalyzer({
+        repoPath: this.config.rootPath || process.cwd(),
+        maestroDir: this.config.maestroDir
+      });
+
+      const result = analyzer.analyzeFromCommits(commits, options);
+
+      return {
+        success: true,
+        directoryChanges: result.directoryChanges.length,
+        detectedPatterns: result.detectedPatterns,
+        architectureEvolution: result.architectureEvolution,
+        statistics: result.statistics,
+        summary: analyzer.generateStructureSummary(result)
+      };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Generate all documentation in one call
+   * @param {Object} options - Generation options
+   * @param {Function} onProgress - Progress callback
+   * @returns {Object} Full generation result
+   */
+  async generateAllDocumentation(options = {}, onProgress = null) {
+    const result = {
+      success: true,
+      features: null,
+      adrs: null,
+      dependencies: null,
+      structure: null
+    };
+
+    // First, parse commits
+    const workspace = this.workspaceScanner.scan();
+    const repos = this.selectRepositories(workspace, options);
+    const allCommits = [];
+
+    for (const repo of repos) {
+      const parser = new GitHistoryParser({
+        repoPath: repo.path,
+        batchSize: this.config.batchSize
+      });
+
+      const parseResult = await parser.parseCommits(
+        this.buildParseOptions(options, repo)
+      );
+
+      allCommits.push(...parseResult.commits);
+    }
+
+    if (allCommits.length === 0) {
+      return { success: false, error: 'No commits found' };
+    }
+
+    // Generate features
+    if (options.generateDocs !== false) {
+      result.features = await this.generateFeatureDocumentation(
+        allCommits,
+        { ...options, groupBy: options.groupBy || 'auto' },
+        onProgress
+      );
+    }
+
+    // Generate ADRs
+    if (options.generateAdrs !== false) {
+      result.adrs = await this.generateADRs(allCommits, options, onProgress);
+    }
+
+    // Analyze dependencies
+    if (options.trackDependencies !== false) {
+      result.dependencies = await this.analyzeDependencies(allCommits, options);
+    }
+
+    // Analyze structure
+    if (options.analyzeStructure !== false) {
+      result.structure = await this.analyzeStructure(allCommits, options);
+    }
+
+    return result;
   }
 }
 

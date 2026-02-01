@@ -330,6 +330,12 @@ class MaestroMCPServer {
       case 'hydrate_status':
         return this.toolHydrateStatus(args);
 
+      case 'generate_feature_docs':
+        return await this.toolGenerateFeatureDocs(args);
+
+      case 'generate_adrs':
+        return await this.toolGenerateADRs(args);
+
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
@@ -1861,6 +1867,148 @@ class MaestroMCPServer {
   }
 
   /**
+   * Tool: Generate feature documentation
+   */
+  async toolGenerateFeatureDocs(args) {
+    if (!this.hydrationManager) {
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            action: 'generate_feature_docs',
+            success: false,
+            error: 'Hydration manager not available'
+          }, null, 2)
+        }]
+      };
+    }
+
+    try {
+      const {
+        groupBy = 'auto',
+        since = null,
+        until = null,
+        maxCommits = null,
+        minGroupSize = 1,
+        includeUngrouped = true
+      } = args;
+
+      // Use hydration manager to generate feature docs
+      const result = await this.hydrationManager.generateAllDocumentation({
+        since,
+        until,
+        maxCommits,
+        groupBy,
+        minGroupSize,
+        includeUngrouped,
+        generateDocs: true,
+        generateAdrs: false,
+        trackDependencies: false,
+        analyzeStructure: false
+      });
+
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            action: 'generate_feature_docs',
+            success: result.success,
+            features: result.features,
+            message: result.features?.success
+              ? `Generated ${result.features.documentation?.featuresDocumented || 0} feature documents`
+              : 'Failed to generate feature documentation'
+          }, null, 2)
+        }]
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            action: 'generate_feature_docs',
+            success: false,
+            error: error.message
+          }, null, 2)
+        }]
+      };
+    }
+  }
+
+  /**
+   * Tool: Generate ADRs
+   */
+  async toolGenerateADRs(args) {
+    if (!this.hydrationManager) {
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            action: 'generate_adrs',
+            success: false,
+            error: 'Hydration manager not available'
+          }, null, 2)
+        }]
+      };
+    }
+
+    try {
+      const {
+        since = null,
+        until = null,
+        maxCommits = null,
+        minConfidence = 0.6,
+        includeDependencyChanges = true,
+        includeStructureChanges = true
+      } = args;
+
+      // Use hydration manager to generate ADRs
+      const result = await this.hydrationManager.generateAllDocumentation({
+        since,
+        until,
+        maxCommits,
+        minConfidence,
+        generateDocs: false,
+        generateAdrs: true,
+        trackDependencies: includeDependencyChanges,
+        analyzeStructure: includeStructureChanges
+      });
+
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            action: 'generate_adrs',
+            success: result.success,
+            adrs: result.adrs,
+            dependencies: result.dependencies ? {
+              changes: result.dependencies.changes,
+              decisions: result.dependencies.decisions?.length || 0
+            } : null,
+            structure: result.structure ? {
+              patterns: result.structure.detectedPatterns,
+              changes: result.structure.directoryChanges
+            } : null,
+            message: result.adrs?.success
+              ? `Generated ${result.adrs.generated || 0} ADRs`
+              : 'Failed to generate ADRs'
+          }, null, 2)
+        }]
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            action: 'generate_adrs',
+            success: false,
+            error: error.message
+          }, null, 2)
+        }]
+      };
+    }
+  }
+
+  /**
    * Handle resources/list request
    */
   handleListResources() {
@@ -2022,6 +2170,81 @@ class MaestroMCPServer {
           text: JSON.stringify({
             entries: [],
             message: 'No knowledge stored yet'
+          })
+        }]
+      };
+    }
+
+    // Feature documentation index
+    if (uri === 'maestro://features/index') {
+      const projectRoot = process.cwd();
+      const indexPath = path.join(projectRoot, 'maestro', 'features', 'index.md');
+
+      if (fs.existsSync(indexPath)) {
+        return {
+          contents: [{
+            uri,
+            mimeType: 'text/markdown',
+            text: fs.readFileSync(indexPath, 'utf8')
+          }]
+        };
+      }
+
+      return {
+        contents: [{
+          uri,
+          mimeType: 'text/markdown',
+          text: '# Feature Index\n\nNo features documented yet. Run hydration with `generateDocs: true` to generate feature documentation.'
+        }]
+      };
+    }
+
+    // ADR index
+    if (uri === 'maestro://decisions/index') {
+      const projectRoot = process.cwd();
+      const indexPath = path.join(projectRoot, 'maestro', 'decisions', 'index.md');
+
+      if (fs.existsSync(indexPath)) {
+        return {
+          contents: [{
+            uri,
+            mimeType: 'text/markdown',
+            text: fs.readFileSync(indexPath, 'utf8')
+          }]
+        };
+      }
+
+      return {
+        contents: [{
+          uri,
+          mimeType: 'text/markdown',
+          text: '# Architecture Decision Records\n\nNo ADRs generated yet. Run hydration with `generateAdrs: true` to detect and generate ADRs.'
+        }]
+      };
+    }
+
+    // Hydration state
+    if (uri === 'maestro://hydration/state') {
+      const projectRoot = process.cwd();
+      const statePath = path.join(projectRoot, 'maestro', 'hydration', 'state.json');
+
+      if (fs.existsSync(statePath)) {
+        return {
+          contents: [{
+            uri,
+            mimeType: 'application/json',
+            text: fs.readFileSync(statePath, 'utf8')
+          }]
+        };
+      }
+
+      return {
+        contents: [{
+          uri,
+          mimeType: 'application/json',
+          text: JSON.stringify({
+            hasBeenHydrated: false,
+            message: 'Repository has not been hydrated yet'
           })
         }]
       };

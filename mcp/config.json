@@ -1,6 +1,6 @@
 {
   "name": "maestro-mcp",
-  "version": "1.12.1",
+  "version": "1.13.0",
   "description": "MCP server for Maestro plugin - provides advanced orchestration and multi-branch session capabilities",
   "server": {
     "type": "stdio",
@@ -435,7 +435,7 @@
     },
     {
       "name": "hydrate_knowledge",
-      "description": "Hydrate knowledge system from git history. Extracts decisions, patterns, entities, and learnings from commit history and optionally GitHub PRs.",
+      "description": "Hydrate knowledge system from git history. Extracts decisions, patterns, entities, learnings, and optionally generates feature documentation and ADRs.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -493,6 +493,94 @@
           "minConfidence": {
             "type": "number",
             "description": "Minimum confidence threshold for extracted knowledge (0-1)"
+          },
+          "groupBy": {
+            "type": "string",
+            "enum": ["ticket", "branch", "scope", "semantic", "auto"],
+            "description": "How to group commits into features: ticket (by JIRA/GitHub IDs), branch (by feature branches), scope (by conventional commit scope), semantic (by content similarity), auto (combine all strategies)"
+          },
+          "generateDocs": {
+            "type": "boolean",
+            "description": "Generate feature documentation in maestro/features/"
+          },
+          "generateAdrs": {
+            "type": "boolean",
+            "description": "Generate Architecture Decision Records in maestro/decisions/"
+          },
+          "trackDependencies": {
+            "type": "boolean",
+            "description": "Track package.json/requirements.txt changes and detect technology decisions"
+          },
+          "analyzeStructure": {
+            "type": "boolean",
+            "description": "Analyze directory structure changes for architectural insights"
+          }
+        }
+      }
+    },
+    {
+      "name": "generate_feature_docs",
+      "description": "Generate feature documentation from git history without full hydration. Groups commits and creates Markdown feature docs.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "groupBy": {
+            "type": "string",
+            "enum": ["ticket", "branch", "scope", "semantic", "auto"],
+            "description": "Grouping strategy for commits"
+          },
+          "since": {
+            "type": "string",
+            "description": "Start date for commit filtering (ISO date)"
+          },
+          "until": {
+            "type": "string",
+            "description": "End date for commit filtering (ISO date)"
+          },
+          "maxCommits": {
+            "type": "number",
+            "description": "Limit number of commits to process"
+          },
+          "minGroupSize": {
+            "type": "number",
+            "description": "Minimum commits required to form a feature group (default: 1)"
+          },
+          "includeUngrouped": {
+            "type": "boolean",
+            "description": "Include ungrouped commits in documentation (default: true)"
+          }
+        }
+      }
+    },
+    {
+      "name": "generate_adrs",
+      "description": "Detect and generate Architecture Decision Records from git history. Analyzes commits for architectural decisions and creates ADR documents.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "since": {
+            "type": "string",
+            "description": "Start date for commit filtering (ISO date)"
+          },
+          "until": {
+            "type": "string",
+            "description": "End date for commit filtering (ISO date)"
+          },
+          "maxCommits": {
+            "type": "number",
+            "description": "Limit number of commits to process"
+          },
+          "minConfidence": {
+            "type": "number",
+            "description": "Minimum confidence for ADR detection (0-1, default: 0.6)"
+          },
+          "includeDependencyChanges": {
+            "type": "boolean",
+            "description": "Include major dependency changes as ADRs (default: true)"
+          },
+          "includeStructureChanges": {
+            "type": "boolean",
+            "description": "Include significant structure changes as ADRs (default: true)"
           }
         }
       }
@@ -553,6 +641,24 @@
       "uri": "maestro://learning/knowledge",
       "name": "Knowledge Store",
       "description": "Accumulated knowledge from the learning system",
+      "mimeType": "application/json"
+    },
+    {
+      "uri": "maestro://features/index",
+      "name": "Feature Index",
+      "description": "Index of generated feature documentation",
+      "mimeType": "text/markdown"
+    },
+    {
+      "uri": "maestro://decisions/index",
+      "name": "ADR Index",
+      "description": "Index of Architecture Decision Records",
+      "mimeType": "text/markdown"
+    },
+    {
+      "uri": "maestro://hydration/state",
+      "name": "Hydration State",
+      "description": "Current hydration state and progress",
       "mimeType": "application/json"
     }
   ],
