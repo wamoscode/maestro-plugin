@@ -41,6 +41,32 @@ class GitHistoryParser {
       /use\s+(\w+)\s+instead\s+of\s+(\w+)/i,
       /breaking\s+change/i
     ];
+
+    // Ticket ID extraction patterns
+    this.ticketPatterns = [
+      // JIRA style: PROJ-123, ABC-1234
+      { regex: /\b([A-Z]{2,10}-\d+)\b/g, type: 'jira', priority: 1 },
+      // GitHub style: #123
+      { regex: /(?:^|\s)#(\d+)\b/g, type: 'github', priority: 2, transform: (m) => `#${m}` },
+      // GitHub explicit: GH-123
+      { regex: /\bGH-(\d+)\b/gi, type: 'github', priority: 2, transform: (m) => `GH-${m}` },
+      // Bracketed: [PROJ-123]
+      { regex: /\[([A-Z]+-\d+)\]/g, type: 'bracketed', priority: 1 },
+      // Generic issue: ISSUE-123
+      { regex: /\b(ISSUE-\d+)\b/gi, type: 'generic', priority: 3 },
+      // Fixes/Closes GitHub: fixes #123, closes #456
+      { regex: /(?:fixes?|closes?|resolves?)\s*#(\d+)/gi, type: 'github-link', priority: 1, transform: (m) => `#${m}` }
+    ];
+
+    // Branch type patterns for categorization
+    this.branchPatterns = {
+      feature: [/^feature\//, /^feat\//, /^add-/],
+      bugfix: [/^fix\//, /^bugfix\//, /^hotfix\//],
+      refactor: [/^refactor\//, /^cleanup\//, /^improve\//],
+      chore: [/^chore\//, /^maintenance\//],
+      release: [/^release\//, /^v\d+\./],
+      docs: [/^docs\//, /^documentation\//]
+    };
   }
 
   /**
@@ -219,6 +245,12 @@ class GitHistoryParser {
       // Detect decisions in commit message
       const decisions = this.detectDecisions(subject + ' ' + body);
 
+      // Extract ticket IDs
+      const tickets = this.extractTicketIds(subject, body);
+
+      // Extract branch info from merge commits
+      const branchInfo = isMerge ? this.extractBranchFromMerge(subject) : null;
+
       return {
         hash,
         shortHash: hash.substring(0, 7),
@@ -231,11 +263,107 @@ class GitHistoryParser {
         isMerge,
         isBreaking: conventional.breaking || subject.includes('!') || body.includes('BREAKING CHANGE'),
         decisions,
-        filesChanged: stats.files.map(f => f.path)
+        filesChanged: stats.files.map(f => f.path),
+        // New fields for enhanced grouping
+        tickets,
+        branchInfo
       };
     } catch (error) {
       return null;
     }
+  }
+
+  /**
+   * Extract ticket IDs from commit message
+   * @param {string} subject - Commit subject
+   * @param {string} body - Commit body
+   * @returns {Array} Extracted tickets with priority
+   */
+  extractTicketIds(subject, body) {
+    const text = `${subject} ${body || ''}`;
+    const tickets = [];
+
+    for (const pattern of this.ticketPatterns) {
+      const regex = new RegExp(pattern.regex.source, pattern.regex.flags);
+      let match;
+
+      while ((match = regex.exec(text)) !== null) {
+        const ticketId = pattern.transform
+          ? pattern.transform(match[1])
+          : match[1];
+
+        tickets.push({
+          id: ticketId.toUpperCase(),
+          type: pattern.type,
+          priority: pattern.priority
+        });
+      }
+    }
+
+    // Sort by priority and deduplicate
+    tickets.sort((a, b) => a.priority - b.priority);
+    const seen = new Set();
+    return tickets.filter(t => {
+      if (seen.has(t.id)) return false;
+      seen.add(t.id);
+      return true;
+    });
+  }
+
+  /**
+   * Extract branch information from a merge commit subject
+   * @param {string} subject - Merge commit subject
+   * @returns {Object|null} Branch info
+   */
+  extractBranchFromMerge(subject) {
+    // Pattern: Merge branch 'feature/xyz' into main
+    const branchMatch = subject.match(/Merge\s+branch\s+'([^']+)'/i);
+    if (branchMatch) {
+      const branchName = branchMatch[1];
+      return {
+        name: branchName,
+        type: this.detectBranchType(branchName)
+      };
+    }
+
+    // Pattern: Merge pull request #123 from user/feature/xyz
+    const prMatch = subject.match(/Merge\s+pull\s+request\s+#(\d+)\s+from\s+\S+\/(.+)/i);
+    if (prMatch) {
+      const branchName = prMatch[2];
+      return {
+        name: branchName,
+        prNumber: parseInt(prMatch[1], 10),
+        type: this.detectBranchType(branchName)
+      };
+    }
+
+    // Pattern: Merge feature/xyz into main
+    const simpleMatch = subject.match(/Merge\s+(\S+)\s+into\s+\S+/i);
+    if (simpleMatch) {
+      const branchName = simpleMatch[1];
+      return {
+        name: branchName,
+        type: this.detectBranchType(branchName)
+      };
+    }
+
+    return null;
+  }
+
+  /**
+   * Detect branch type from branch name
+   * @param {string} branchName - Branch name
+   * @returns {string} Branch type
+   */
+  detectBranchType(branchName) {
+    for (const [type, patterns] of Object.entries(this.branchPatterns)) {
+      for (const pattern of patterns) {
+        if (pattern.test(branchName)) {
+          return type;
+        }
+      }
+    }
+    return 'other';
   }
 
   /**
